@@ -18,6 +18,8 @@ public class Server2 extends Thread {
 
     @Override
     public void run() {
+        reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort() + " waiting for clients...", 1);
+        System.out.println("test");
         while (true) {
             try (Socket client = serverSocket.accept()) {
                 ClientConnection2 cC = new ClientConnection2(
