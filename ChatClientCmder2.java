@@ -55,14 +55,14 @@ public class ChatClientCmder2 {
                     while (connected) {
                     // Handle receiving messages from server
                     if (inputStream.available() > 0) {
-                        ChatMessage message = (ChatMessage) inputStream.readObject();
-                        System.out.println(message.getSender() + ": " + message.getMessage());
+                        String message = (String) inputStream.readObject();
+                        System.out.println(message);
                     }
 
                     // Handle sending messages from user input
                     if (inputScanner.hasNextLine()) {
                         String userInput = inputScanner.nextLine();
-                        outputStream.writeObject(new ChatMessage(userInput));
+                        outputStream.writeObject(userInput);
                         outputStream.flush();
 
                         if (userInput.equalsIgnoreCase("quit")) {
