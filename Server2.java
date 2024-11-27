@@ -9,13 +9,11 @@ import java.util.concurrent.Executors;
 public class Server2 extends Thread {
     public static final ExecutorService pool = Executors.newFixedThreadPool(3);
     private ServerSocket serverSocket;
-    private ClientInfo2 clientInfo;
-    private String[] cmds = { "/connect", "/nick", "/list",
-    "/join", "/leave", "/quit", "/help" };
+    private Reporter2 reporter;
 
     public Server2(int port, Reporter2 reporter) throws IOException {
         serverSocket = new ServerSocket(port);
-        clientInfo = new ClientInfo2();
+        this.reporter = reporter;
     }
 
     @Override
@@ -36,9 +34,27 @@ public class Server2 extends Thread {
 
     private class ServerConnection2 extends Thread {
         private ClientConnection2 cC;
+        private CommandHelper2 cmdHelp;
 
         private ServerConnection2(ClientConnection2 cC) {
             this.cC = cC;
+            cmdHelp = new CommandHelper2(reporter, cC);
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (cC.isOpen()) {
+                    String currCmd = (String) cC.in.readObject();
+                    reporter.report("received message from client: " + cC.getNickname(), 1);
+                    if (currCmd.equals("/help")) {
+                        cmdHelp.help();
+                    }
+                }
+            } catch (IOException e) {
+
+            }catch (Exception e) {
+            }
         }
     }
 }
