@@ -6,15 +6,14 @@ public class ChatServer2 {
     public static void main(String[] args) {
         int[] portAndDebug = ChatServerParser2.returnArgs(args);
         try {
-
             Server2 s = new Server2(portAndDebug[0], new Reporter2(debugLevel));
             /* Shutdown hook part, happens during ctrl-c */
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 if (shutdownHook) {
-                    System.out.println("\nServer was shutdown.");
+                    System.out.println("Shutting down server...");
                 }
             }));
-            s.runServer();
+            s.run();
 
         } catch (SocketException e) {
             shutdownHook = false;
