@@ -1,17 +1,17 @@
 build:
-	javac *.java
+	javac *2.java
 
-ChatServer.class: ChatServer.java
-	javac ChatServer.java
+ChatServer2.class: ChatServer2.java
+	javac ChatServer2.java
 
-server: ChatServer.class
-	java ChatServer -p 5111 -d 0
+server: ChatServer2.class
+	java ChatServer2 -p 5111 -d 0
 
-ChatClient.class: ChatClient.java
-	javac ChatClient.java
+ChatClient2.class: ChatClient2.java
+	javac ChatClient2.java
 
-client: ChatClient.class
-	java ChatClient
+client: ChatClient2.class
+	java ChatClient2
 
 clean:
 	rm *.class

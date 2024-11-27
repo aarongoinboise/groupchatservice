@@ -21,7 +21,7 @@ public class ChatServerParser2 {
             printUsageAndExit(usage);
         }
         int possDebugLevel = Integer.parseInt(args[3]);
-        if (possDebugLevel != 0 || possDebugLevel != 1) {
+        if (possDebugLevel != 0 && possDebugLevel != 1) {
             printUsageAndExit(usage);
         }
         portAndDebug[1] = possDebugLevel;
