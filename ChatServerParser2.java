@@ -2,7 +2,7 @@ public class ChatServerParser2 {
 
     public static int[] returnArgs(String[] args) {
         int[] portAndDebug = new int[2];
-        String usage = "java ChatServer -p <port#> -d <debug-level>\n where debug-level is 0 or 1";
+        String usage = "usage: java ChatServer -p <port#> -d <debug-level>\n where debug-level is 0 or 1";
         if (args.length != 4 || !args[0].equals("-p") || !args[2].equals("-d")) {
             printUsageAndExit(usage);
         }
