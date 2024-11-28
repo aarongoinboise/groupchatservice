@@ -25,10 +25,13 @@ public class Server2 {
             try (Socket client = serverSocket.accept()) {
                 ObjectInputStream in = (ObjectInputStream) client.getInputStream();
                 ObjectOutputStream out = (ObjectOutputStream) client.getOutputStream();
+                out.writeObject("default" + nickNameCounter);
+                out.flush();
+                reporter.report("new client connection: default" + nickNameCounter, 1);
+                nickNameCounter++;
 
                 ServerConnection2 serverConnection = new ServerConnection2(in, out);
-                nickNameCounter++;
-                pool.execute(serverConnection);  // Executes the task using the thread pool
+                pool.execute(serverConnection);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -47,15 +50,15 @@ public class Server2 {
 
         @Override
         public void run() {
-            reporter.report("new client connection: " + cC.getNickname(), 1);
+            boolean open = true;
             try {
-                while (cC.isOpen()) {
+                while (open) {
                     System.out.println("before reading command");
-                    String currCmd = (String) cC.in.readObject();
+                    String currCmd = (String) in.readObject();
                     System.out.println("after reading command");
                     reporter.report("received message from client: " + cC.getNickname(), 1);
                     if (currCmd.equals("/help")) {
-                        cmdHelp.help();
+                        
                         reporter.report("sent help message to client " + cC.getNickname(), 1);
                     }
                 }
