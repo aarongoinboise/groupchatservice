@@ -14,7 +14,7 @@ public class ClientConnection2 {
     }
 
     public boolean isOpen(){
-        return in == null && out == null;
+        return in != null && out != null;
     }
 
     public synchronized String getNickname() {

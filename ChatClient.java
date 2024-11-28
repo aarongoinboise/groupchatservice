@@ -32,7 +32,7 @@ public class ChatClient {
         connected = false;
         scannerInServer = false;
         inputScanner = new Scanner(System.in);
-        printHelp();
+        System.out.println("Type '/connect <host> <port>' to start:");
         while(true){
             /* Wait for scanned input to finish */
             if (!scannerInServer) {
