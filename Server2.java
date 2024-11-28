@@ -53,13 +53,13 @@ public class Server2 {
             boolean open = true;
             try {
                 while (open) {
-                    System.out.println("before reading command");
                     String currCmd = (String) in.readObject();
-                    System.out.println("after reading command");
-                    reporter.report("received message from client: " + cC.getNickname(), 1);
+                    String currNickname = (String) in.readObject();
+                    reporter.report("client " + currNickname + " send command " + currCmd, 1);
                     if (currCmd.equals("/help")) {
-                        
-                        reporter.report("sent help message to client " + cC.getNickname(), 1);
+                        out.writeObject("help message placeholder");
+                        out.flush();
+                        reporter.report("sent help message to client " + currNickname, 1);
                     }
                 }
             } catch (IOException e) {
