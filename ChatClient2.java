@@ -16,6 +16,7 @@ public class ChatClient2 {
     public static Scanner inputScanner;
     public static boolean inChannel;
     public static String nickname;
+    private static String[] cmds = {"/connect", "/nick", "/list", "/join", "/leave", "/quit", "/help"};
 
     /**
      * Main for ChatClient: Connects to a server and uses protocol commands
@@ -44,16 +45,35 @@ public class ChatClient2 {
             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
             System.out.println("Connection with server " + socket.getInetAddress() + " established!");
             nickname = (String) in.readObject();
+            String cmd = "";
             while (true) {
-                connectCmd = inputScanner.nextLine();
-                out.writeObject(connectCmd);
-                out.flush();
-                String response = (String) in.readObject();
-                System.out.println("Server response:\n" + response);
+                cmd = inputScanner.nextLine();
+                if (nonCmd(cmd) && inChannel) {
+
+                } else {
+                    out.writeObject(cmd);
+                    out.flush();
+                    String response = (String) in.readObject();
+                    // check response
+                    if (!response.startsWith("bad")) {
+                        nickname = cmd.substring(6);
+                    }
+                    System.out.println(response);
+                }
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    private static boolean nonCmd(String cmd) {
+        String lCmd = cmd.toLowerCase();
+        for (String c : cmds) {
+            if (lCmd.startsWith(c)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Socket trySocket(String connectCmd) {
@@ -85,8 +105,9 @@ public class ChatClient2 {
         }
     }
 
-        /**
-     * runnable class which waits for messages from the chat server and displays them to the user
+    /**
+     * runnable class which waits for messages from the chat server and displays
+     * them to the user
      */
     private class ChannelChatDisplay implements Runnable {
         ObjectInputStream in;
@@ -96,14 +117,14 @@ public class ChatClient2 {
          * 
          * @param inputStream
          */
-        public ChannelChatDisplay(ObjectInputStream in){
+        public ChannelChatDisplay(ObjectInputStream in) {
             this.in = in;
         }
 
         @Override
         public void run() {
             String message;
-            while(inChannel) {
+            while (inChannel) {
                 try {
                     message = (String) in.readObject();
                     System.out.println(message);
@@ -113,7 +134,6 @@ public class ChatClient2 {
                 }
             }
         }
-
 
     }
 
