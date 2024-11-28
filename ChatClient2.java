@@ -15,6 +15,7 @@ public class ChatClient2 {
     public static final int NUM_THREADS = 2;// one thread for sending, one thread for receiving
     public static Scanner inputScanner;
     public static boolean inChannel;
+    public static String nickname;
 
     /**
      * Main for ChatClient: Connects to a server and uses protocol commands
@@ -42,10 +43,16 @@ public class ChatClient2 {
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
             System.out.println("Connection with server " + socket.getInetAddress() + " established!");
+            nickname = (String) in.readObject();
             while (true) {
-
+                connectCmd = inputScanner.nextLine();
+                out.writeObject(connectCmd);
+                out.flush();
+                out.writeObject(nickname);
+                out.flush();
+                System.out.println("Server response:\n" + (String) in.readObject());
             }
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
@@ -76,21 +83,6 @@ public class ChatClient2 {
             }
         } catch (NoSuchElementException e) {
             return null;
-        }
-    }
-
-    private class ChannelConnect implements Runnable {
-        private ObjectInputStream in;
-        private ObjectOutputStream out;
-
-        private ChannelConnect(ObjectInputStream in, ObjectOutputStream out) {
-            this.in = in;
-            this.out = out;
-        }
-        @Override
-        public void run() {
-            while(inChannel){
-            }
         }
     }
 

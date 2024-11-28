@@ -62,6 +62,10 @@ public class Server2 {
                         out.writeObject("help message placeholder");
                         out.flush();
                         reporter.report("sent help message to client " + currNickname, 1);
+                    } else {
+                        out.writeObject("bad command, try again");
+                        out.flush();
+                        reporter.report("sent retry message to client " + currNickname, 1);
                     }
                 }
             } catch (IOException e) {
