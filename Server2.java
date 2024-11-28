@@ -23,8 +23,8 @@ public class Server2 {
         reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort() + " waiting for clients...", 1);
         while (true) {
             try (Socket client = serverSocket.accept()) {
-                ObjectInputStream in = (ObjectInputStream) client.getInputStream();
-                ObjectOutputStream out = (ObjectOutputStream) client.getOutputStream();
+                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
                 out.writeObject("default" + nickNameCounter);
                 out.flush();
                 reporter.report("new client connection: default" + nickNameCounter, 1);
