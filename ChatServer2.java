@@ -12,7 +12,7 @@ public class ChatServer2 {
                     System.out.println("Shutting down server...");
                 }
             }));
-            s.run();
+            s.startServer();
 
         } catch (SocketException e) {
             shutdownHook = false;
