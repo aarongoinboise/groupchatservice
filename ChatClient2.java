@@ -38,6 +38,7 @@ import java.util.Scanner;
 public class ChatClient2 {
     private static final String CONNECT_COMMAND = "/connect ";
     private static final String QUIT_COMMAND = "/quit";
+    private static boolean connected = false;
 
     public static void main(String[] args) {
         if (args.length != 0) {
@@ -45,32 +46,31 @@ public class ChatClient2 {
         }
 
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Type '/connect <host> <port>' to start:");
-        
-        while (true) {
-            String input = scanner.nextLine();
-            if (input.startsWith(CONNECT_COMMAND)) {
-                String[] parts = input.substring(CONNECT_COMMAND.length()).split(" ");
-                if (parts.length < 2) {
-                    System.out.println("Invalid command. Usage: /connect <host> <port>");
-                    continue;
-                }
 
-                String host = parts[0];
-                int port = Integer.parseInt(parts[1]);
-                try {
-                    new ChatClient2().startClient(host, port);
-                } catch (IOException e) {
-                    System.out.println("Failed to connect: " + e.getMessage());
+        while (true) {
+            if (!connected) {
+                System.out.println("Type '/connect <host> <port>' to start:");
+                String input = scanner.nextLine();
+                if (input.startsWith(CONNECT_COMMAND)) {
+                    String[] parts = input.substring(CONNECT_COMMAND.length()).split(" ");
+                    if (parts.length < 2) {
+                        System.out.println("Invalid command. Usage: /connect <host> <port>");
+                        continue;
+                    }
+
+                    String host = parts[0];
+                    int port = Integer.parseInt(parts[1]);
+                    try {
+                        new ChatClient2().startClient(host, port);
+                        connected = true;
+                    } catch (IOException e) {
+                        System.out.println("Failed to connect: " + e.getMessage());
+                    }
+                } else {
+                    System.out.println("Not a connect command!");
                 }
-            } else if (input.equals(QUIT_COMMAND)) {
-                System.out.println("Exiting...");
-                break;
-            } else {
-                System.out.println("Unknown command.");
             }
         }
-        scanner.close();
     }
 
     private void startClient(String host, int port) throws IOException {
@@ -106,6 +106,7 @@ public class ChatClient2 {
                     if (bytesRead == -1) {
                         System.out.println("Disconnected from server.");
                         channel.close();
+                        connected = false;
                         return;
                     }
                     buffer.flip();
@@ -117,6 +118,7 @@ public class ChatClient2 {
                     if (message.equals(QUIT_COMMAND)) {
                         channel.close();
                         System.out.println("Disconnected.");
+                        connected = false;
                         return;
                     }
                     buffer.clear();
@@ -128,4 +130,3 @@ public class ChatClient2 {
         }
     }
 }
-
