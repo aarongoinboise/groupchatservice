@@ -42,10 +42,12 @@ public class Server2 {
     private class ServerConnection2 implements Runnable {
         private ObjectInputStream in;
         private ObjectOutputStream out;
+        private String currNickname;
 
         private ServerConnection2(ObjectInputStream in, ObjectOutputStream out) {
             this.in = in;
             this.out = out;
+            this.currNickname = "unknown";
         }
 
         @Override
@@ -63,9 +65,9 @@ public class Server2 {
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                reporter.report("client " + currNickname + " disconnected", 0);
             } catch (Exception e) {
-                e.printStackTrace();
+                reporter.report("exception " + e.toString() + " occurred", 0);
             }
         }
     }

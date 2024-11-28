@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,9 +34,54 @@ public class ChatClient2 {
         scannerInServer = false;
         inputScanner = new Scanner(System.in);
         System.out.println("Type '/connect <host> <port>' to start:");
-        while(true){
-            
+        String connectCmd = "";
+        Socket socket = null;
+        while(!connectCmd.startsWith("/connect")) {
+            connectCmd = inputScanner.nextLine();
+            if (!connectCmd.startsWith("/connect")) {
+                System.out.println("Not a connect command");
+            }
+            else {
+                socket = trySocket(connectCmd);
+                System.out.println("Connection could not be established");
+                connectCmd = "";
+            }
         } // end while
+        try {
+            ObjectInputStream in = (ObjectInputStream) socket.getInputStream();
+            ObjectOutputStream out = (ObjectOutputStream) socket.getOutputStream();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Socket trySocket(String connectCmd) {
+        try {
+            Scanner sockScan = new Scanner(connectCmd);
+            sockScan.useDelimiter("//s+");
+            sockScan.next();
+            String host = sockScan.next();
+            String portS = sockScan.next();
+            char[] cs = portS.toCharArray();
+            if (sockScan.hasNext()) {
+                sockScan.close();
+                return null;
+            }
+            sockScan.close();
+            for (char c : cs) {
+                if (!Character.isDigit(c)) {
+                    return null;
+                }
+            }
+            int port = Integer.parseInt(portS);
+            try (Socket socket = new Socket(host, port)) {
+                return new Socket(host, port);
+            } catch (IOException e) {
+                return null;
+            }
+        } catch (NoSuchElementException e) {
+            return null;
+        }
     }
 
 }
