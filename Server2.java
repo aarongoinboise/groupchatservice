@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Server2 {
-    public static final ExecutorService pool = Executors.newFixedThreadPool(3);
+    public static final ExecutorService pool = Executors.newFixedThreadPool(4);
     private ServerSocket serverSocket;
     private Reporter2 reporter;
     private int nickNameCounter;
@@ -33,7 +33,7 @@ public class Server2 {
                 ServerConnection2 serverConnection = new ServerConnection2(in, out);
                 pool.execute(serverConnection);
             } catch (IOException e) {
-                e.printStackTrace();
+                reporter.report("client default" + nickNameCounter + " disconnected", 0);
             }
         }
     }
