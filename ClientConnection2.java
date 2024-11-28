@@ -7,10 +7,10 @@ public class ClientConnection2 {
     private ObjectOutputStream out;
     private String nickName;
 
-    public ClientConnection2(ObjectInputStream in, ObjectOutputStream out) {
+    public ClientConnection2(ObjectInputStream in, ObjectOutputStream out, int nickname) {
         this.in = in;
         this.out = out;
-        nickName = null;
+        this.nickName = "default" + nickname;
     }
 
     public boolean isOpen(){

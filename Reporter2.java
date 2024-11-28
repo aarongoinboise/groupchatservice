@@ -13,7 +13,6 @@ public class Reporter2 {
                 System.out.println(msg);
             }
         }
-        System.out.println(debugLevel);
     }
 
 }
