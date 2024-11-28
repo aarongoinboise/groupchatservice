@@ -11,29 +11,38 @@ public class Server2 {
     public static final ExecutorService pool = Executors.newFixedThreadPool(4);
     private ServerSocket serverSocket;
     private Reporter2 reporter;
-    private int nickNameCounter;
+    private int nickNameIdx;
+    private String[] currNicknames;
 
     public Server2(int port, Reporter2 reporter) throws IOException {
         serverSocket = new ServerSocket(port);
         this.reporter = reporter;
-        nickNameCounter = 0;
+        nickNameIdx = 0;
+        currNicknames = new String[4];
     }
 
     public void startServer() {
-        reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort() + " waiting for clients...", 1);
+        reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
+                + " waiting for clients...", 1);
         while (true) {
             try (Socket client = serverSocket.accept()) {
                 ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-                out.writeObject("default" + nickNameCounter);
+                out.writeObject("default" + nickNameIdx);
                 out.flush();
-                reporter.report("new client connection: default" + nickNameCounter, 1);
-                nickNameCounter++;
+                reporter.report("new client connection: default" + nickNameIdx, 1);
+                currNicknames[nickNameIdx] = "default" + nickNameIdx;
+                int currNNIdx = nickNameIdx;
+                if (nickNameIdx == 3) {
+                    nickNameIdx = 0;
+                } else {
+                    nickNameIdx++;
+                }
 
-                ServerConnection2 serverConnection = new ServerConnection2(in, out);
+                ServerConnection2 serverConnection = new ServerConnection2(in, out, currNNIdx);
                 pool.execute(serverConnection);
             } catch (IOException e) {
-                reporter.report("client default" + nickNameCounter + " disconnected", 0);
+                reporter.report("client default" + nickNameIdx + " disconnected", 0);
             }
         }
     }
@@ -43,11 +52,13 @@ public class Server2 {
         private ObjectInputStream in;
         private ObjectOutputStream out;
         private String currNickname;
+        private int nickNameIdx;
 
-        private ServerConnection2(ObjectInputStream in, ObjectOutputStream out) {
+        private ServerConnection2(ObjectInputStream in, ObjectOutputStream out, int nickNameIdx) {
             this.in = in;
             this.out = out;
-            this.currNickname = "unknown";
+            this.nickNameIdx = nickNameIdx;
+            this.currNickname = currNicknames[nickNameIdx];
         }
 
         @Override
@@ -56,12 +67,30 @@ public class Server2 {
             try {
                 while (open) {
                     String currCmd = (String) in.readObject();
-                    String currNickname = (String) in.readObject();
                     reporter.report("client " + currNickname + " send command " + currCmd, 1);
                     if (currCmd.equals("/help")) {
                         out.writeObject("help message placeholder");
                         out.flush();
                         reporter.report("sent help message to client " + currNickname, 1);
+                    } else if (currCmd.startsWith("/nick") && currCmd.length() >= 7) {
+                        String newNickname = currCmd.substring(6);
+                        // check if newnickname is unique among all users
+                        for (String n : currNicknames) {
+                            if (n.equals(newNickname)) {
+                                out.writeObject("the new nickname is not unique, try again");
+                                out.flush();
+                                reporter.report(currNickname + " attempted to change nickname into a non-unique value",
+                                        1);
+                            }
+                        }
+                        // at this point, change the nickname
+                        String oldNickname = currNicknames[nickNameIdx];
+                        currNicknames[nickNameIdx] = newNickname;
+                        out.writeObject("your new nickname is " + newNickname);
+                        out.flush();
+                        reporter.report(oldNickname + " changed the nickname to " + newNickname,
+                                1);
+
                     } else {
                         out.writeObject("bad command, try again");
                         out.flush();

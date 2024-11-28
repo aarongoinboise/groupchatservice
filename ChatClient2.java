@@ -48,9 +48,8 @@ public class ChatClient2 {
                 connectCmd = inputScanner.nextLine();
                 out.writeObject(connectCmd);
                 out.flush();
-                out.writeObject(nickname);
-                out.flush();
-                System.out.println("Server response:\n" + (String) in.readObject());
+                String response = (String) in.readObject();
+                System.out.println("Server response:\n" + response);
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
@@ -84,6 +83,38 @@ public class ChatClient2 {
         } catch (NoSuchElementException e) {
             return null;
         }
+    }
+
+        /**
+     * runnable class which waits for messages from the chat server and displays them to the user
+     */
+    private class ChannelChatDisplay implements Runnable {
+        ObjectInputStream in;
+
+        /**
+         * Constructor: sets inputStream
+         * 
+         * @param inputStream
+         */
+        public ChannelChatDisplay(ObjectInputStream in){
+            this.in = in;
+        }
+
+        @Override
+        public void run() {
+            String message;
+            while(inChannel) {
+                try {
+                    message = (String) in.readObject();
+                    System.out.println(message);
+                } catch (ClassNotFoundException | IOException e) {
+                    inChannel = false;
+                    break;
+                }
+            }
+        }
+
+
     }
 
 }
