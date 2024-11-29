@@ -3,6 +3,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
@@ -59,6 +60,7 @@ public class Server2 {
         while (true) {
             try {
                 Socket client = serverSocket.accept();
+                client.setSoTimeout(5000);
                 ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(client.getInputStream());
                 currNicknames[nickNameIdxMain] = "default" + nickNameIdxMain;
@@ -89,7 +91,7 @@ public class Server2 {
         }
     }
 
-    private static boolean nonCmd(String cmd) {
+    private static boolean cmd(String cmd) {
         String lCmd = cmd.toLowerCase();
         for (String c : cmds) {
             if (lCmd.startsWith(c)) {
@@ -129,37 +131,51 @@ public class Server2 {
             return "";
         }
 
-        private ChannelInfo channelToLeave(String channelToLeaveNameFromCmd) {
-            ChannelInfo channelToLeave = null;
+        private synchronized ChannelInfo currChannel(String channelName) {
+            ChannelInfo channelToPick = null;
             for (ChannelInfo channel : channels) {
                 if (channel.members.contains(currNickname)) {
                     // check that it equals channelToLeave if needed
-                    if (!channelToLeaveNameFromCmd.equals("")
-                            && channelToLeaveNameFromCmd.equals(channel.name)) {// correct command
-                        channelToLeave = channel;
-                    } else if (channelToLeaveNameFromCmd.equals("")) {
-                        channelToLeave = channel;
+                    if (!channelName.equals("")
+                            && channelName.equals(channel.name)) {// correct command
+                        channelToPick = channel;
+                    } else if (channelName.equals("")) {
+                        channelToPick = channel;
                     }
                     break;
                 }
             }
-            return channelToLeave;
+            return channelToPick;
         }
 
         @Override
         public void run() {
             try {
-
                 boolean open = true;
                 while (open) {
-                    String currCmd = (String) in.readObject();
-
+                    String currCmd = "";
                     if (inChannel) {
-                        // check if message is to be sent or and check the inputs if any, maybe a timer
-                        // for sending messages each time if user sits there
+                        // check if message is to be sent or and check the inputs if any
+                        String cMs = currChannel("").sendMessages(helpMsg);
+                        out.writeObject(new StringObject2(cMs));
+                        out.flush();
+                    } else {// just send blank message
+                        out.writeObject(new StringObject2(""));
+                        out.flush();
+                    }
+                    try {
+                        currCmd = ((StringObject2) in.readObject()).toString();
+                    } catch (SocketTimeoutException e) {
+                        continue;
+                    }
+                    if (inChannel) {
+                        if (!cmd(currCmd)) {
+                            currChannel("").addMessage("FROM: " + currNickname + currCmd);
+                        }
                     }
 
                     reporter.report("client " + currNickname + " sent command " + currCmd, 1);
+
                     if (currCmd.equals("/help")) {
                         out.writeObject(helpMsg);
                         out.flush();
@@ -183,12 +199,20 @@ public class Server2 {
                         }
                         if (unique) {
                             // at this point, change the nickname
-                            String oldNickname = currNicknames[nickNameIdx];
-                            currNicknames[nickNameIdx] = newNickname;
-                            out.writeObject("your new nickname is " + newNickname);
-                            out.flush();
-                            reporter.report(oldNickname + " changed the nickname to " + newNickname,
-                                    1);
+                            synchronized (currNicknames) {
+                                String oldNickname = currNicknames[nickNameIdx];
+                                currNicknames[nickNameIdx] = newNickname;
+                                // change in channel
+                                if (inChannel) {
+                                    ChannelInfo chan = currChannel("");
+                                    chan.changeNickName(oldNickname, newNickname);
+                                }
+
+                                out.writeObject("your new nickname is " + newNickname);
+                                out.flush();
+                                reporter.report(oldNickname + " changed the nickname to " + newNickname,
+                                        1);
+                            }
                         }
 
                     } else if (currCmd.equals("/list")) {
@@ -256,7 +280,7 @@ public class Server2 {
                             channelToLeaveNameFromCmd = currCmd.substring(7);
                         }
                         synchronized (channels) {
-                            ChannelInfo channelToLeave = channelToLeave(channelToLeaveNameFromCmd);
+                            ChannelInfo channelToLeave = currChannel(channelToLeaveNameFromCmd);
                             if (channelToLeave == null) {
                                 out.writeObject(
                                         "Bad leave command, likely due to incorrect usage of the optional [<channel>] arg (not entering the channel name correctly). An easier command to use is to simply use \"/leave\", which will leave the current channel.");
@@ -278,7 +302,7 @@ public class Server2 {
                         String quitMsg = "";
                         // leave channel
                         if (inChannel) {
-                            ChannelInfo channelToLeave = channelToLeave("");
+                            ChannelInfo channelToLeave = currChannel("");
                             if (channelToLeave == null) {
                                 quitMsg += "Internal error, while quitting your channel was not found.\n";
                                 reporter.report(currNickname + " could not leave channel while quitting", 0);
@@ -304,7 +328,8 @@ public class Server2 {
                         out.flush();
                         reporter.report("sent retry message to client " + currNickname, 1);
                     } // end else
-                }
+                } // end while
+
             } catch (IOException e) {
                 reporter.report("client " + currNickname + " disconnected", 0);
             } catch (Exception e) {
@@ -325,13 +350,22 @@ public class Server2 {
             messages = new HashMap<>();
         }
 
-        private void addMessage(String message) {
+        private synchronized void addMessage(String message) {
             for (String member : members) {
                 messages.computeIfAbsent(member, messages -> new ArrayList<String>()).add(message);
             }
         }
 
-        private String sendMessages(String member) {
+        private synchronized void changeNickName(String oldN, String newN) {
+            members.remove(oldN);
+            members.add(newN);
+            ArrayList<String> m = messages.remove(oldN);
+            if (m != null && !m.isEmpty()) {
+                messages.computeIfAbsent(newN, messages -> new ArrayList<String>()).add(String.join("\n", m));
+            }
+        }
+
+        private synchronized String sendMessages(String member) {
             if (!messages.containsKey(member)) {
                 return "";
             }

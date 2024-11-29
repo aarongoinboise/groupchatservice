@@ -11,7 +11,6 @@ import java.util.Scanner;
 public class ChatClient2 {
     public static final int NUM_THREADS = 2;// one thread for sending, one thread for receiving
     public static Scanner inputScanner;
-    public static boolean inChannel;
     public static String nickname;
 
     /**
@@ -21,7 +20,6 @@ public class ChatClient2 {
      */
     @SuppressWarnings("resource")
     public static void main(String args[]) {
-        inChannel = false;
         while (true) {
             inputScanner = new Scanner(System.in);
             System.out.println("Type '/connect <host> <port>' to start:");
@@ -53,6 +51,7 @@ public class ChatClient2 {
                 int port = Integer.parseInt(portS);
                 try {
                     socket = new Socket(host, port);
+                    socket.setSoTimeout(5000);
                 } catch (IOException e) {
                     System.out.println("Bad connect command, try again.");
                     continue;
@@ -70,34 +69,47 @@ public class ChatClient2 {
                 System.out.println("Current nickname: " + nickname + ". To change, use the /nick command");
                 String cmd = "";
                 while (connected) {
+                    if (socket.isClosed()) {
+                        connected = false;
+                        continue;
+                    }
+
+                    String possMsgs = ((StringObject2) in.readObject()).toString();
+                    if (!possMsgs.isBlank()) {
+                        System.out.println(possMsgs);
+                    }
+
                     cmd = inputScanner.nextLine();
                     if (cmd.startsWith("/connect")) {
                         System.out.println("Already connected to server, you must disconnect first.");
                         continue;
                     }
-                    out.writeObject(cmd);
+                    StringObject2 serializedCmd = new StringObject2(cmd);
+                    out.writeObject(serializedCmd);
                     out.flush();
-                    String response = (String) in.readObject();
+                    String response = ((StringObject2) in.readObject()).toString();
                     // check responses, which will change the protocols
-                    if (response.startsWith("joined existing channel") || response.startsWith("created a new channel")) {
-                        inChannel = true;
+                    if (response.startsWith("joined existing channel")
+                            || response.startsWith("created a new channel")) {
+                        
 
                     } else if (response.contains("left channel") && !response.contains("Leaving server")) {
-                        inChannel = false;
-                    
+                      
+
                     } else if (response.contains("Leaving server")) {
-                        inChannel = false;
+                        connected = false;
 
                     } else if (response.startsWith("your new nickname is")) {
                         nickname = cmd.substring(6);
                     }
                     System.out.println(response);
-                }
+
+                } // end connected while
 
             } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
+                System.out.println("Possible server shutdown, connection ended.");
             }
-        }
-    }
+        } // end client while
+    }// end main
 
 }
