@@ -16,53 +16,53 @@ public class Server2 {
     private String[] currNicknames;
     private ArrayList<ChannelInfo> channels;
     private String helpMsg;
-    private static String[] cmds = {"/connect", "/nick", "/list", "/join", "/leave", "/quit", "/help"};
-    
-        public Server2(int port, Reporter2 reporter) throws IOException {
-            serverSocket = new ServerSocket(port);
-            this.reporter = reporter;
-            nickNameIdx = 0;
-            currNicknames = new String[4];
-            channels = new ArrayList<ChannelInfo>();
-            helpMsg = "Command\tDescription\n" +
-                    "/connect <server-name> [port#]\tConnect to named server (port# optional)\n" +
-                    "/nick <nickname>\tPick a nickname (should be unique among active users)\n" +
-                    "/list\tList channels and number of users\n" +
-                    "/join <channel>\tJoin a channel, all text typed is sent to all users on the channel\n" +
-                    "/leave [<channel>]\tLeave the current (or named) channel\n" +
-                    "/quit\tLeave chat and disconnect from server\n" +
-                    "/help\tPrint out help message";
-        }
-    
-        public void startServer() {
-            reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
-                    + " waiting for clients...", 1);
-            while (true) {
-                try (Socket client = serverSocket.accept()) {
-                    ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-                    ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-                    out.writeObject("default" + nickNameIdx);
-                    out.flush();
-                    reporter.report("new client connection: default" + nickNameIdx, 1);
-                    currNicknames[nickNameIdx] = "default" + nickNameIdx;
-                    int currNNIdx = nickNameIdx;
-                    if (nickNameIdx == 3) {
-                        nickNameIdx = 0;
-                    } else {
-                        nickNameIdx++;
-                    }
-    
-                    ServerConnection2 serverConnection = new ServerConnection2(in, out, currNNIdx);
-                    pool.execute(serverConnection);
-                } catch (IOException e) {
-                    reporter.report("client default" + nickNameIdx + " disconnected", 0);
+    private static String[] cmds = { "/connect", "/nick", "/list", "/join", "/leave", "/quit", "/help" };
+
+    public Server2(int port, Reporter2 reporter) throws IOException {
+        serverSocket = new ServerSocket(port);
+        this.reporter = reporter;
+        nickNameIdx = 0;
+        currNicknames = new String[4];
+        channels = new ArrayList<ChannelInfo>();
+        helpMsg = "Command\tDescription\n" +
+                "/connect <server-name> [port#]\tConnect to named server (port# optional)\n" +
+                "/nick <nickname>\tPick a nickname (should be unique among active users)\n" +
+                "/list\tList channels and number of users\n" +
+                "/join <channel>\tJoin a channel, all text typed is sent to all users on the channel\n" +
+                "/leave [<channel>]\tLeave the current (or named) channel\n" +
+                "/quit\tLeave chat and disconnect from server\n" +
+                "/help\tPrint out help message";
+    }
+
+    public void startServer() {
+        reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
+                + " waiting for clients...", 1);
+        while (true) {
+            try (Socket client = serverSocket.accept()) {
+                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                out.writeObject("default" + nickNameIdx);
+                out.flush();
+                reporter.report("new client connection: default" + nickNameIdx, 1);
+                currNicknames[nickNameIdx] = "default" + nickNameIdx;
+                int currNNIdx = nickNameIdx;
+                if (nickNameIdx == 3) {
+                    nickNameIdx = 0;
+                } else {
+                    nickNameIdx++;
                 }
+
+                ServerConnection2 serverConnection = new ServerConnection2(in, out, currNNIdx);
+                pool.execute(serverConnection);
+            } catch (IOException e) {
+                reporter.report("client default" + nickNameIdx + " disconnected", 0);
             }
         }
-    
-        private static boolean nonCmd(String cmd) {
-            String lCmd = cmd.toLowerCase();
-            for (String c : cmds) {
+    }
+
+    private static boolean nonCmd(String cmd) {
+        String lCmd = cmd.toLowerCase();
+        for (String c : cmds) {
             if (lCmd.startsWith(c)) {
                 return true;
             }
@@ -94,7 +94,8 @@ public class Server2 {
                     String currCmd = (String) in.readObject();
 
                     if (inChannel) {
-                        // check if message is to be sent or continue
+                        // check if message is to be sent or and check the inputs if any, maybe a timer
+                        // for sending messages each time if user sits there
                     }
 
                     reporter.report("client " + currNickname + " sent command " + currCmd, 1);
@@ -104,7 +105,7 @@ public class Server2 {
                         reporter.report("sent help message to client " + currNickname, 1);
 
                     } else if (currCmd.startsWith("/nick") && currCmd.length() >= 7
-                            && !currCmd.substring(6).equals("")) {
+                            && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")) {
                         String newNickname = currCmd.substring(6);
                         boolean unique = true;
                         // check if newnickname is unique among all users
@@ -149,7 +150,8 @@ public class Server2 {
                         out.writeObject(cInfo);
                         out.flush();
                     } else if (currCmd.startsWith("/join") && currCmd.length() >= 7
-                            && !currCmd.substring(6).equals("") && !inChannel) {
+                            && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")
+                            && !inChannel) {
                         String possChannelName = currCmd.substring(6);
                         synchronized (channels) {
                             ChannelInfo channelToJoin = null;
@@ -182,14 +184,43 @@ public class Server2 {
                             out.flush();
                             inChannel = true;
                         }
-                    
-                    } else if (currCmd.startsWith("/leave") && currCmd.length() >= 8
-                    && !currCmd.substring(7).equals("") && inChannel) {
+
+                    } else if ((currCmd.startsWith("/leave")
+                            && (currCmd.length() >= 8 && !currCmd.substring(7).trim().isEmpty()
+                                    && currCmd.substring(6, 7).equals(" ")))
+                            && inChannel) {
+                        // get substring if it exists
+                        String channelToLeaveNameFromCmd = "";
+                        if (currCmd.length() >= 8) {
+                            channelToLeaveNameFromCmd = currCmd.substring(7);
+                        }
                         synchronized (channels) {
+                            ChannelInfo channelToLeave = null;
+                            for (ChannelInfo channel : channels) {
+                                if (channel.members.contains(currNickname)) {
+                                    // check that it equals channelToLeave if needed
+                                    if (!channelToLeaveNameFromCmd.equals("")
+                                            && channelToLeaveNameFromCmd.equals(channel.name)) {// correct command
+                                        channelToLeave = channel;
+                                    } else if (channelToLeaveNameFromCmd.equals("")) {
+                                        channelToLeave = channel;
+                                    }
+                                    break;
+                                }
+                            }
+                            if (channelToLeave == null) {
+                                out.writeObject(
+                                        "Bad leave command, likely due to incorrect usage of the optional [<channel>] arg (not entering the channel name correctly). An easier command to use is to simply use \"/leave\", which will leave the current channel.");
+                                out.flush();
+                                reporter.report("sent /leave retry message to client " + currNickname, 1);
+                            } else {// actually leave the channel
+
+                            }
                         }
 
                     } else {
-                        out.writeObject("Bad command due to improper syntax or usage. Examples include joining a channel while in another one, or leaving a channel that you aren't currently in. Try again");
+                        out.writeObject(
+                                "Bad command due to improper syntax (i.e. spacing) or usage. Examples include joining a channel while in another one, or leaving a channel that you aren't currently in. Try again");
                         out.flush();
                         reporter.report("sent retry message to client " + currNickname, 1);
                     } // end else

@@ -40,13 +40,14 @@ public class ChatClient2 {
                     }
                 }
             } // end while
+            boolean connected = true;
             try {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 System.out.println("Connection with server " + socket.getInetAddress() + " established!");
                 nickname = (String) in.readObject();
                 String cmd = "";
-                while (true) {
+                while (connected) {
                     cmd = inputScanner.nextLine();
                     if (cmd.startsWith("/connect")) {
                         System.out.println("Already connected to server, you must disconnect first.");
