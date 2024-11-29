@@ -4,12 +4,13 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Client side class for a chat server
  */
 public class ChatClient2 {
-    public static final int NUM_THREADS = 2;// one thread for sending, one thread for receiving
     public static Scanner inputScanner;
     public static String nickname;
 
@@ -67,7 +68,7 @@ public class ChatClient2 {
                 System.out.println("Connection with server " + socket.getInetAddress() + " established!");
                 nickname = ((StringObject2) in.readObject()).toString();
                 System.out.println("Current nickname: " + nickname + ". To change, use the /nick command");
-                String cmd = "";
+                String[] cmd = new String[1];
                 while (connected) {
                     if (socket.isClosed()) {
                         connected = false;
@@ -79,28 +80,44 @@ public class ChatClient2 {
                         System.out.println(possMsgs);
                     }
 
-                    cmd = inputScanner.nextLine();
-                    if (cmd.startsWith("/connect")) {
+                    // give user only 5 seconds to input
+                    Timer timer = new Timer();
+                    boolean[] timesUp = {false};
+                    timer.schedule(new TimerTask() {
+                        @Override
+                        public void run() {
+                            timesUp[0] = true;
+                        }
+                    }, 5000);
+                    Thread inputThread = new Thread(() -> {
+                        cmd[0] = inputScanner.nextLine();
+                    });
+                    inputThread.start();
+                    while (!timesUp[0] && cmd[0] == null);
+                    if (timesUp[0]) { // didn't scan in time
+                        continue;
+                    }
+                    timer.cancel();
+                    
+                    if (cmd[0].startsWith("/connect")) {
                         System.out.println("Already connected to server, you must disconnect first.");
                         continue;
                     }
-                    StringObject2 serializedCmd = new StringObject2(cmd);
+                    StringObject2 serializedCmd = new StringObject2(cmd[0]);
                     out.writeObject(serializedCmd);
                     out.flush();
                     String response = ((StringObject2) in.readObject()).toString();
                     // check responses, which will change the protocols
                     if (response.startsWith("joined existing channel")
                             || response.startsWith("created a new channel")) {
-                        
 
                     } else if (response.contains("left channel") && !response.contains("Leaving server")) {
-                      
 
                     } else if (response.contains("Leaving server")) {
                         connected = false;
 
                     } else if (response.startsWith("your new nickname is")) {
-                        nickname = cmd.substring(6);
+                        nickname = cmd[0].substring(6);
                     }
                     System.out.println(response);
 
