@@ -16,7 +16,6 @@ public class ChatClient2 {
     public static Scanner inputScanner;
     public static boolean inChannel;
     public static String nickname;
-    private static String[] cmds = {"/connect", "/nick", "/list", "/join", "/leave", "/quit", "/help"};
 
     /**
      * Main for ChatClient: Connects to a server and uses protocol commands
@@ -24,60 +23,49 @@ public class ChatClient2 {
      * @param args
      */
     public static void main(String args[]) {
-        inputScanner = new Scanner(System.in);
-        System.out.println("Type '/connect <host> <port>' to start:");
-        String connectCmd = "";
-        Socket socket = null;
-        while (!connectCmd.startsWith("/connect")) {
-            connectCmd = inputScanner.nextLine();
-            if (!connectCmd.startsWith("/connect")) {
-                System.out.println("Not a connect command");
-            } else {
-                socket = trySocket(connectCmd);
-                if (socket == null) {
-                    System.out.println("Connection could not be established");
-                    connectCmd = "";
-                }
-            }
-        } // end while
-        try {
-            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-            System.out.println("Connection with server " + socket.getInetAddress() + " established!");
-            nickname = (String) in.readObject();
-            String cmd = "";
-            while (true) {
-                cmd = inputScanner.nextLine();
-                if (nonCmd(cmd) && inChannel) {// make in and out targeted to just the channel, and check for cmds ChannelChatDisplay
-                
-                } else if (cmd.startsWith("/join") && !inChannel) {// join channel
-                
-                } else if (cmd.startsWith("/connect")) {// tell them to disconnect first?
-
+        while (true) {
+            inputScanner = new Scanner(System.in);
+            System.out.println("Type '/connect <host> <port>' to start:");
+            String connectCmd = "";
+            Socket socket = null;
+            while (!connectCmd.startsWith("/connect")) {
+                connectCmd = inputScanner.nextLine();
+                if (!connectCmd.startsWith("/connect")) {
+                    System.out.println("Not a connect command");
                 } else {
+                    socket = trySocket(connectCmd);
+                    if (socket == null) {
+                        System.out.println("Connection could not be established");
+                        connectCmd = "";
+                    }
+                }
+            } // end while
+            try {
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                System.out.println("Connection with server " + socket.getInetAddress() + " established!");
+                nickname = (String) in.readObject();
+                String cmd = "";
+                while (true) {
+                    cmd = inputScanner.nextLine();
+                    if (cmd.startsWith("/connect")) {
+                        System.out.println("Already connected to server, you must disconnect first.");
+                        continue;
+                    }
                     out.writeObject(cmd);
                     out.flush();
                     String response = (String) in.readObject();
-                    // check response
+                    // check responses, which will change the protocols
                     if (!response.startsWith("bad")) {
                         nickname = cmd.substring(6);
                     }
                     System.out.println(response);
                 }
-            }
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
 
-    private static boolean nonCmd(String cmd) {
-        String lCmd = cmd.toLowerCase();
-        for (String c : cmds) {
-            if (lCmd.startsWith(c)) {
-                return true;
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
             }
         }
-        return false;
     }
 
     private static Socket trySocket(String connectCmd) {
@@ -109,36 +97,36 @@ public class ChatClient2 {
         }
     }
 
-    /**
-     * runnable class which waits for messages from the chat server and displays
-     * them to the user
-     */
-    private class ChannelChatDisplay implements Runnable {
-        ObjectInputStream in;
+    // /**
+    // * runnable class which waits for messages from the chat server and displays
+    // * them to the user
+    // */
+    // private class ChannelChatDisplay implements Runnable {
+    // ObjectInputStream in;
 
-        /**
-         * Constructor: sets inputStream
-         * 
-         * @param inputStream
-         */
-        public ChannelChatDisplay(ObjectInputStream in) {
-            this.in = in;
-        }
+    // /**
+    // * Constructor: sets inputStream
+    // *
+    // * @param inputStream
+    // */
+    // public ChannelChatDisplay(ObjectInputStream in) {
+    // this.in = in;
+    // }
 
-        @Override
-        public void run() {
-            String message;
-            while (inChannel) {
-                try {
-                    message = (String) in.readObject();
-                    System.out.println(message);
-                } catch (ClassNotFoundException | IOException e) {
-                    inChannel = false;
-                    break;
-                }
-            }
-        }
+    // @Override
+    // public void run() {
+    // String message;
+    // while (inChannel) {
+    // try {
+    // message = (String) in.readObject();
+    // System.out.println(message);
+    // } catch (ClassNotFoundException | IOException e) {
+    // inChannel = false;
+    // break;
+    // }
+    // }
+    // }
 
-    }
+    // }
 
 }
