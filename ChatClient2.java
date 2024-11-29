@@ -48,7 +48,9 @@ public class ChatClient2 {
             String cmd = "";
             while (true) {
                 cmd = inputScanner.nextLine();
-                if (nonCmd(cmd) && inChannel) {
+                if (nonCmd(cmd) && inChannel) {// make in and out targeted to just the channel, and check for cmds
+                
+                } else if (cmd.startsWith("/join") && !inChannel) {// join channel
 
                 } else {
                     out.writeObject(cmd);
@@ -105,36 +107,36 @@ public class ChatClient2 {
         }
     }
 
-    /**
-     * runnable class which waits for messages from the chat server and displays
-     * them to the user
-     */
-    private class ChannelChatDisplay implements Runnable {
-        ObjectInputStream in;
+    // /**
+    //  * runnable class which waits for messages from the chat server and displays
+    //  * them to the user
+    //  */
+    // private class ChannelChatDisplay implements Runnable {
+    //     ObjectInputStream in;
 
-        /**
-         * Constructor: sets inputStream
-         * 
-         * @param inputStream
-         */
-        public ChannelChatDisplay(ObjectInputStream in) {
-            this.in = in;
-        }
+    //     /**
+    //      * Constructor: sets inputStream
+    //      * 
+    //      * @param inputStream
+    //      */
+    //     public ChannelChatDisplay(ObjectInputStream in) {
+    //         this.in = in;
+    //     }
 
-        @Override
-        public void run() {
-            String message;
-            while (inChannel) {
-                try {
-                    message = (String) in.readObject();
-                    System.out.println(message);
-                } catch (ClassNotFoundException | IOException e) {
-                    inChannel = false;
-                    break;
-                }
-            }
-        }
+    //     @Override
+    //     public void run() {
+    //         String message;
+    //         while (inChannel) {
+    //             try {
+    //                 message = (String) in.readObject();
+    //                 System.out.println(message);
+    //             } catch (ClassNotFoundException | IOException e) {
+    //                 inChannel = false;
+    //                 break;
+    //             }
+    //         }
+    //     }
 
-    }
+    // }
 
 }
