@@ -86,6 +86,20 @@ public class Server2 {
             this.inChannel = false;
         }
 
+        private synchronized String sendMessages() {
+            ChannelInfo currChannel = null;
+            for (ChannelInfo channel : channels) {
+                if (channel.members.contains(currNickname)) {
+                    currChannel = channel;
+                    break;
+                }
+            }
+            if (currChannel != null) {
+                return currChannel.sendMessages(currNickname);
+            }
+            return "";
+        }
+
         @Override
         public void run() {
             boolean open = true;
@@ -214,9 +228,15 @@ public class Server2 {
                                 out.flush();
                                 reporter.report("sent /leave retry message to client " + currNickname, 1);
                             } else {// actually leave the channel
-
+                                // send all messages still not sent yet
+                                String msgs = sendMessages();
+                                channelToLeave.members.remove(currNickname);
+                                out.writeObject(msgs + "\nLeft channel " + channelToLeave.name);
+                                out.flush();
+                                reporter.report(currNickname + "left channel " + channelToLeave.name, 1);
+                                inChannel = false;
                             }
-                        }
+                        }// end sync
 
                     } else {
                         out.writeObject(
@@ -256,6 +276,9 @@ public class Server2 {
                 return "";
             }
             ArrayList<String> memberMessages = messages.remove(member);
+            if (memberMessages == null) {
+                return "";
+            }
             return String.join("\n", memberMessages);
         }
     }
