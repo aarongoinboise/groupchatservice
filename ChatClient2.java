@@ -4,9 +4,6 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Client side class for a chat server
@@ -22,7 +19,9 @@ public class ChatClient2 {
      * 
      * @param args
      */
+    @SuppressWarnings("resource")
     public static void main(String args[]) {
+        inChannel = false;
         while (true) {
             inputScanner = new Scanner(System.in);
             System.out.println("Type '/connect <host> <port>' to start:");
@@ -31,19 +30,23 @@ public class ChatClient2 {
             try {
                 Scanner sockScan = new Scanner(connectCmd);
                 sockScan.useDelimiter("\\s+");
-                sockScan.next();
+                String cmd = sockScan.next();
+                if (!cmd.equals("/connect")) {
+                    System.out.println("Not a connect command, try again.");
+                    continue;
+                }
                 String host = sockScan.next();
                 String portS = sockScan.next();
                 char[] cs = portS.toCharArray();
                 if (sockScan.hasNext()) {
                     sockScan.close();
-                    System.out.println("Bad connect command.");
+                    System.out.println("Bad connect command, try again.");
                     continue;
                 }
                 sockScan.close();
                 for (char c : cs) {
                     if (!Character.isDigit(c)) {
-                        System.out.println("Bad connect command.");
+                        System.out.println("Bad connect command, try again.");
                         continue;
                     }
                 }
@@ -51,11 +54,11 @@ public class ChatClient2 {
                 try {
                     socket = new Socket(host, port);
                 } catch (IOException e) {
-                    System.out.println("Bad connect command.");
+                    System.out.println("Bad connect command, try again.");
                     continue;
                 }
             } catch (NoSuchElementException e) {
-                System.out.println("Bad connect command.");
+                System.out.println("Bad connect command, try again.");
                 continue;
             }
             boolean connected = true;
@@ -63,8 +66,8 @@ public class ChatClient2 {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 System.out.println("Connection with server " + socket.getInetAddress() + " established!");
-                StringObject2 result = (StringObject2) in.readObject();
-                System.out.println(result.toString());
+                nickname = ((StringObject2) in.readObject()).toString();
+                System.out.println("Current nickname: " + nickname + ". To change, use the /nick command");
                 String cmd = "";
                 while (connected) {
                     cmd = inputScanner.nextLine();
@@ -76,7 +79,16 @@ public class ChatClient2 {
                     out.flush();
                     String response = (String) in.readObject();
                     // check responses, which will change the protocols
-                    if (!response.startsWith("bad")) {
+                    if (response.startsWith("joined existing channel") || response.startsWith("created a new channel")) {
+                        inChannel = true;
+
+                    } else if (response.contains("left channel") && !response.contains("Leaving server")) {
+                        inChannel = false;
+                    
+                    } else if (response.contains("Leaving server")) {
+                        inChannel = false;
+
+                    } else if (response.startsWith("your new nickname is")) {
                         nickname = cmd.substring(6);
                     }
                     System.out.println(response);
@@ -87,37 +99,5 @@ public class ChatClient2 {
             }
         }
     }
-
-    // /**
-    // * runnable class which waits for messages from the chat server and displays
-    // * them to the user
-    // */
-    // private class ChannelChatDisplay implements Runnable {
-    // ObjectInputStream in;
-
-    // /**
-    // * Constructor: sets inputStream
-    // *
-    // * @param inputStream
-    // */
-    // public ChannelChatDisplay(ObjectInputStream in) {
-    // this.in = in;
-    // }
-
-    // @Override
-    // public void run() {
-    // String message;
-    // while (inChannel) {
-    // try {
-    // message = (String) in.readObject();
-    // System.out.println(message);
-    // } catch (ClassNotFoundException | IOException e) {
-    // inChannel = false;
-    // break;
-    // }
-    // }
-    // }
-
-    // }
 
 }

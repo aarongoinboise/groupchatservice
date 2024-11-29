@@ -266,7 +266,7 @@ public class Server2 {
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
                                 channelToLeave.members.remove(currNickname);
-                                out.writeObject(msgs + "\nLeft channel " + channelToLeave.name);
+                                out.writeObject(msgs + "\nleft channel " + channelToLeave.name);
                                 out.flush();
                                 reporter.report(currNickname + " left channel " + channelToLeave.name, 1);
                                 inChannel = false;
@@ -286,7 +286,7 @@ public class Server2 {
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
                                 channelToLeave.members.remove(currNickname);
-                                quitMsg += msgs + "\nLeft channel " + channelToLeave.name;
+                                quitMsg += msgs + "\nleft channel " + channelToLeave.name;
                                 reporter.report(currNickname + " left channel " + channelToLeave.name, 1);
                             }
                         }
