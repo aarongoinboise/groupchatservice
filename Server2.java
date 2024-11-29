@@ -1,5 +1,4 @@
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
@@ -141,6 +140,37 @@ public class Server2 {
                     } else if (currCmd.startsWith("/join") && currCmd.length() >= 7
                             && !currCmd.substring(6).equals("")) {
                         String possChannelName = currCmd.substring(6);
+                        synchronized (channels) {
+                            ChannelInfo channelToJoin = null;
+                            if (!channels.isEmpty()) {
+                                for (ChannelInfo channel : channels) {
+                                    if (channel.name.equals(possChannelName)) {
+                                        channelToJoin = channel;
+                                        break;
+                                    }
+                                }
+                            }
+                            String s1;
+                            if (channelToJoin != null) {
+                                channelToJoin.members.add(currNickname);
+                                s1 = "joined existing channel " + channelToJoin.name;
+                                reporter.report(
+                                        currNickname + " joined existing channel " + channelToJoin.name,
+                                        1);
+
+                            } else { // create new channel
+                                channelToJoin = new ChannelInfo(possChannelName, currNickname);
+                                channels.add(channelToJoin);
+                                s1 = "created a new channel called " + channelToJoin.name;
+                                reporter.report(
+                                        currNickname + " created a new channel called " + channelToJoin.name,
+                                        1);
+                            }
+                            s1 += ". Chat messages will now display. Any non-command message you enter will now display in the channel. Commands will still work in addition to chat messages.";
+                            out.writeObject(s1);
+                            out.flush();
+                            inChannel = true;
+                        }
 
                     } else {
                         out.writeObject("bad command, try again");
