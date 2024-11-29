@@ -51,6 +51,8 @@ public class ChatClient2 {
                 if (nonCmd(cmd) && inChannel) {// make in and out targeted to just the channel, and check for cmds ChannelChatDisplay
                 
                 } else if (cmd.startsWith("/join") && !inChannel) {// join channel
+                
+                } else if (cmd.startsWith("/connect")) {// tell them to disconnect first?
 
                 } else {
                     out.writeObject(cmd);

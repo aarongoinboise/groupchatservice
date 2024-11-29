@@ -10,12 +10,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Server2 {
-    public static final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private static final ExecutorService pool = Executors.newFixedThreadPool(4);
     private ServerSocket serverSocket;
     private Reporter2 reporter;
     private int nickNameIdx;
     private String[] currNicknames;
     private ArrayList<ChannelInfo> channels;
+    private String helpMsg;
 
     public Server2(int port, Reporter2 reporter) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -23,6 +24,14 @@ public class Server2 {
         nickNameIdx = 0;
         currNicknames = new String[4];
         channels = new ArrayList<ChannelInfo>();
+        helpMsg = "Command\tDescription\n" +
+                "/connect <server-name> [port#]\tConnect to named server (port# optional)\n" +
+                "/nick <nickname>\tPick a nickname (should be unique among active users)\n" +
+                "/list\tList channels and number of users\n" +
+                "/join <channel>\tJoin a channel, all text typed is sent to all users on the channel\n" +
+                "/leave [<channel>]\tLeave the current (or named) channel\n" +
+                "/quit\tLeave chat and disconnect from server\n" +
+                "/help\tPrint out help message";
     }
 
     public void startServer() {
@@ -73,26 +82,34 @@ public class Server2 {
             try {
                 while (open) {
                     String currCmd = (String) in.readObject();
+
                     if (inChannel) {
-                        // check if message is to be sent
-                    
-                    } else { 
-                        reporter.report("client " + currNickname + " send command " + currCmd, 1);
-                        if (currCmd.equals("/help")) {
-                            out.writeObject("help message placeholder");
-                            out.flush();
-                            reporter.report("sent help message to client " + currNickname, 1);
-                        } else if (currCmd.startsWith("/nick") && currCmd.length() >= 7) {
-                            String newNickname = currCmd.substring(6);
-                            // check if newnickname is unique among all users
-                            for (String n : currNicknames) {
-                                if (n.equals(newNickname)) {
-                                    out.writeObject("the new nickname is not unique, try again");
-                                    out.flush();
-                                    reporter.report(currNickname + " attempted to change nickname into a non-unique value",
-                                            1);
-                                }
+                        // check if message is to be sent, continue, or to break out
+                    }
+
+                    reporter.report("client " + currNickname + " sent command " + currCmd, 1);
+                    if (currCmd.equals("/help")) {
+                        out.writeObject(helpMsg);
+                        out.flush();
+                        reporter.report("sent help message to client " + currNickname, 1);
+
+                    } else if (currCmd.startsWith("/nick") && currCmd.length() >= 7
+                            && !currCmd.substring(6).equals("")) {
+                        String newNickname = currCmd.substring(6);
+                        boolean unique = true;
+                        // check if newnickname is unique among all users
+                        for (String n : currNicknames) {
+                            if (n.equals(newNickname)) {
+                                out.writeObject("the new nickname is not unique, try again");
+                                out.flush();
+                                reporter.report(
+                                        currNickname + " attempted to change nickname into a non-unique value",
+                                        1);
+                                unique = false;
+                                break;
                             }
+                        }
+                        if (unique) {
                             // at this point, change the nickname
                             String oldNickname = currNicknames[nickNameIdx];
                             currNicknames[nickNameIdx] = newNickname;
@@ -100,13 +117,36 @@ public class Server2 {
                             out.flush();
                             reporter.report(oldNickname + " changed the nickname to " + newNickname,
                                     1);
-
-                        } else {
-                            out.writeObject("bad command, try again");
-                            out.flush();
-                            reporter.report("sent retry message to client " + currNickname, 1);
                         }
-                    }
+
+                    } else if (currCmd.equals("/list")) {
+                        String cInfo = "/list results:\n";
+                        synchronized (channels) {
+                            if (channels.isEmpty()) {
+                                cInfo += "No channels exist on this server!";
+
+                            } else {
+                                for (ChannelInfo channel : channels) {
+                                    cInfo += "-\n";
+                                    cInfo += "Channel name with members below: " + channel.name + "\n";
+                                    for (String member : channel.members) {
+                                        cInfo += member + "\n";
+                                    }
+                                    cInfo += "-\n";
+                                }
+                            }
+                        }
+                        out.writeObject(cInfo);
+                        out.flush();
+                    } else if (currCmd.startsWith("/join") && currCmd.length() >= 7
+                            && !currCmd.substring(6).equals("")) {
+                        String possChannelName = currCmd.substring(6);
+
+                    } else {
+                        out.writeObject("bad command, try again");
+                        out.flush();
+                        reporter.report("sent retry message to client " + currNickname, 1);
+                    } // end else
                 }
             } catch (IOException e) {
                 reporter.report("client " + currNickname + " disconnected", 0);
@@ -119,19 +159,27 @@ public class Server2 {
     private class ChannelInfo {
         String name;
         ArrayList<String> members;
-        HashMap<String, String> messages;
+        HashMap<String, ArrayList<String>> messages;
 
         private ChannelInfo(String name, String firstMember) {
             this.name = name;
             members = new ArrayList<String>();
             members.add(firstMember);
-            messages = new HashMap<String, String>();
+            messages = new HashMap<>();
         }
 
         private void addMessage(String message) {
             for (String member : members) {
-                messages.put(member, message);
+                messages.computeIfAbsent(member, messages -> new ArrayList<String>()).add(message);
             }
+        }
+
+        private String sendMessages(String member) {
+            if (!messages.containsKey(member)) {
+                return "";
+            }
+            ArrayList<String> memberMessages = messages.remove(member);
+            return String.join("\n", memberMessages);
         }
     }
 }
