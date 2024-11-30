@@ -16,7 +16,7 @@ public class ChatServer2 {
 
         } catch (SocketException e) {
             shutdownHook = false;
-            ChatServerParser2.printUsageAndExit("Socket exception.");
+            ChatServerParser2.printUsageAndExit("3 minutes idle, shutting down.");
 
         } catch (Exception e1) {
             ChatServerParser2.printUsageAndExit("Java setup is messed up, or port number is invalid.");

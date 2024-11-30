@@ -12,7 +12,7 @@ import java.util.TimerTask;
  */
 public class ChatClient2 {
     public static Scanner inputScanner;
-    public static String nickname;
+    // public static String nickname;
 
     /**
      * Main for ChatClient: Connects to a server and uses protocol commands
@@ -66,8 +66,7 @@ public class ChatClient2 {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 System.out.println("Connection with server " + socket.getInetAddress() + " established!");
-                nickname = ((StringObject2) in.readObject()).toString();
-                System.out.println("Current nickname: " + nickname + ". To change, use the /nick command");
+                System.out.println("Current nickname: " + ((StringObject2) in.readObject()).toString() + ". To change, use the /nick command");
                 String[] cmd = new String[1];
                 while (connected) {
                     if (socket.isClosed()) {
@@ -113,17 +112,16 @@ public class ChatClient2 {
                     out.flush();
                     String response = ((StringObject2) in.readObject()).toString();
                     // check responses, which will change the protocols
-                    if (response.startsWith("joined existing channel")
-                            || response.startsWith("created a new channel")) {
+                    // if (response.startsWith("joined existing channel")
+                    //         || response.startsWith("created a new channel")) {
 
-                    } else if (response.contains("left channel") && !response.contains("Leaving server")) {
+                    // } else if (response.contains("left channel") && !response.contains("Leaving server")) {
 
-                    } else if (response.contains("Leaving server")) {
+                    // } else 
+                    if (response.contains("Leaving server")) {
                         connected = false;
 
-                    } else if (response.startsWith("your new nickname is")) {
-                        nickname = cmd[0].substring(6);
-                    }
+                    } 
                     System.out.println(response);
 
                 } // end connected while
