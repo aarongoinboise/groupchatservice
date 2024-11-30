@@ -82,23 +82,28 @@ public class ChatClient2 {
 
                     // give user only 5 seconds to input
                     Timer timer = new Timer();
-                    boolean[] timesUp = {false};
+                    boolean[] timesUp = { false };
                     timer.schedule(new TimerTask() {
                         @Override
                         public void run() {
                             timesUp[0] = true;
                         }
                     }, 5000);
-                    Thread inputThread = new Thread(() -> {
-                        cmd[0] = inputScanner.nextLine();
-                    });
-                    inputThread.start();
-                    while (!timesUp[0] && cmd[0] == null);
-                    if (timesUp[0]) { // didn't scan in time
+                    try {
+                        Thread inputThread = new Thread(() -> {
+                            cmd[0] = inputScanner.nextLine();
+                        });
+                        inputThread.start();
+                        while (!timesUp[0] && cmd[0] == null)
+                            ;
+                        if (timesUp[0]) { // didn't scan in time
+                            continue;
+                        }
+                        timer.cancel();
+                    } catch (IndexOutOfBoundsException e) {
                         continue;
                     }
-                    timer.cancel();
-                    
+
                     if (cmd[0].startsWith("/connect")) {
                         System.out.println("Already connected to server, you must disconnect first.");
                         continue;

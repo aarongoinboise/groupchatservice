@@ -166,6 +166,7 @@ public class Server2 {
                     try {
                         currCmd = ((StringObject2) in.readObject()).toString();
                     } catch (SocketTimeoutException e) {
+                        reporter.report("Input timeout for " + currNickname, 0);
                         continue;
                     }
                     if (inChannel) {
