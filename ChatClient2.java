@@ -89,25 +89,25 @@ public class ChatClient2 {
                             timesUp[0] = true;
                         }
                     }, 5000);
-                    try {
-                        Thread inputThread = new Thread(() -> {
+                    Thread inputThread = new Thread(() -> {
+                        try {
                             cmd[0] = inputScanner.nextLine();
-                        });
-                        inputThread.start();
-                        while (!timesUp[0] && cmd[0] == null)
-                            ;
-                        if (timesUp[0]) { // didn't scan in time
-                            continue;
+                        } catch (IndexOutOfBoundsException e) {
                         }
-                        timer.cancel();
-                    } catch (IndexOutOfBoundsException e) {
+                    });
+                    inputThread.start();
+                    while (!timesUp[0] && cmd[0] == null)
+                        ;
+                    if (timesUp[0]) { // didn't scan in time
                         continue;
                     }
+                    timer.cancel();
 
                     if (cmd[0].startsWith("/connect")) {
                         System.out.println("Already connected to server, you must disconnect first.");
                         continue;
                     }
+                    System.out.println("AFTER TIMER");
                     StringObject2 serializedCmd = new StringObject2(cmd[0]);
                     out.writeObject(serializedCmd);
                     out.flush();
