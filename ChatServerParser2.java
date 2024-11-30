@@ -1,4 +1,5 @@
 public class ChatServerParser2 {
+    private static Reporter2 reporter = new Reporter2(1);
 
     public static int[] returnArgs(String[] args) {
         int[] portAndDebug = new int[2];
@@ -29,7 +30,7 @@ public class ChatServerParser2 {
     }
 
     public static void printUsageAndExit(String msg) {
-        System.err.println(msg);
+        reporter.report(msg, 0);
         System.exit(1);
     }
 }

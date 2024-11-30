@@ -12,6 +12,7 @@ import java.util.TimerTask;
  */
 public class ChatClient2 {
     public static Scanner inputScanner;
+    private static Reporter2 reporter = new Reporter2(1);
     // public static String nickname;
 
     /**
@@ -23,7 +24,7 @@ public class ChatClient2 {
     public static void main(String args[]) {
         while (true) {
             inputScanner = new Scanner(System.in);
-            System.out.println("Type '/connect <host> <port>' to start:");
+            reporter.report("Type '/connect <host> <port>' to start:", 1);
             String connectCmd = inputScanner.nextLine();
             Socket socket = null;
             try {
