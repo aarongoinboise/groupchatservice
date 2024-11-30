@@ -30,7 +30,7 @@ public class ChatServerParser2 {
     }
 
     public static void printUsageAndExit(String msg) {
-        reporter.report(msg, 0);
+        reporter.report(msg, 0, "cyan");
         System.exit(1);
     }
 }

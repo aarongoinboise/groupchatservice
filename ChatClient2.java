@@ -24,7 +24,7 @@ public class ChatClient2 {
     public static void main(String args[]) {
         while (true) {
             inputScanner = new Scanner(System.in);
-            reporter.report("Type '/connect <host> <port>' to start:", 1);
+            reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
             String connectCmd = inputScanner.nextLine();
             Socket socket = null;
             try {
@@ -32,7 +32,7 @@ public class ChatClient2 {
                 sockScan.useDelimiter("\\s+");
                 String cmd = sockScan.next();
                 if (!cmd.equals("/connect")) {
-                    System.out.println("Not a connect command, try again.");
+                    reporter.report("Not a connect command, try again.", 1, "cyan");
                     continue;
                 }
                 String host = sockScan.next();
@@ -40,13 +40,13 @@ public class ChatClient2 {
                 char[] cs = portS.toCharArray();
                 if (sockScan.hasNext()) {
                     sockScan.close();
-                    System.out.println("Bad connect command, try again.");
+                    reporter.report("Bad connect command, try again.", 1, "cyan");
                     continue;
                 }
                 sockScan.close();
                 for (char c : cs) {
                     if (!Character.isDigit(c)) {
-                        System.out.println("Bad connect command, try again.");
+                        reporter.report("Bad connect command, try again.", 1, "cyan");
                         continue;
                     }
                 }
@@ -55,19 +55,19 @@ public class ChatClient2 {
                     socket = new Socket(host, port);
                     socket.setSoTimeout(5000);
                 } catch (IOException e) {
-                    System.out.println("Bad connect command, try again.");
+                    reporter.report("Bad connect command, try again.", 1, "cyan");
                     continue;
                 }
             } catch (NoSuchElementException e) {
-                System.out.println("Bad connect command, try again.");
+                reporter.report("Bad connect command, try again.", 1, "cyan");
                 continue;
             }
             boolean connected = true;
             try {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-                System.out.println("Connection with server " + socket.getInetAddress() + " established!");
-                System.out.println("Current nickname: " + ((StringObject2) in.readObject()).toString() + ". To change, use the /nick command");
+                reporter.report("Connection with server " + socket.getInetAddress() + " established!", 1, "green");
+                reporter.report("Current nickname: " + ((StringObject2) in.readObject()).toString() + ". To change, use the /nick command", 1, "yellow");
                 String[] cmd = new String[1];
                 while (connected) {
                     if (socket.isClosed()) {
@@ -77,7 +77,7 @@ public class ChatClient2 {
 
                     String possMsgs = ((StringObject2) in.readObject()).toString();
                     if (!possMsgs.isBlank()) {
-                        System.out.println(possMsgs);
+                        reporter.report(possMsgs, 1, "random");
                     }
 
                     // give user only 5 seconds to input
@@ -104,10 +104,9 @@ public class ChatClient2 {
                     timer.cancel();
 
                     if (cmd[0].startsWith("/connect")) {
-                        System.out.println("Already connected to server, you must disconnect first.");
+                        reporter.report("Already connected to server, you must disconnect first.", 1, "red");
                         continue;
                     }
-                    System.out.println("AFTER TIMER");
                     StringObject2 serializedCmd = new StringObject2(cmd[0]);
                     out.writeObject(serializedCmd);
                     out.flush();
@@ -123,12 +122,12 @@ public class ChatClient2 {
                         connected = false;
 
                     } 
-                    System.out.println(response);
+                    reporter.report(response, 1, "random");
 
                 } // end connected while
 
             } catch (IOException | ClassNotFoundException e) {
-                System.out.println("Possible server shutdown, connection ended.");
+                reporter.report("Possible server shutdown, connection ended.", 1, "red");
             }
         } // end client while
     }// end main

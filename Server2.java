@@ -44,7 +44,7 @@ public class Server2 {
     }
 
     public void startTimer() {
-        reporter.report("starting shutdown timer", 1);
+        reporter.report("starting shutdown timer", 1, "green");
         shutdownTimer.cancel();
         shutdownTimer = new Timer();
 
@@ -54,7 +54,7 @@ public class Server2 {
                     try {
                         serverSocket.close();
                     } catch (IOException e) {
-                        reporter.report("couldn't close server socket", 0);
+                        reporter.report("couldn't close server socket", 0, "red");
                     }
                 }
             }
@@ -95,7 +95,7 @@ public class Server2 {
 
     public void startServer() {
         reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
-                + " waiting for clients...", 1);
+                + " waiting for clients...", 1, "blue");
         while (true) {
             try {
                 Socket client = serverSocket.accept();
@@ -113,7 +113,7 @@ public class Server2 {
                 }
                 out.writeObject(new StringObject2("default" + nickNameIdxMain));
                 out.flush();
-                reporter.report("new client connection: default" + nickNameIdxMain, 1);
+                reporter.report("new client connection: default" + nickNameIdxMain, 1, "yellow");
                 ServerConnection2 serverConnection = new ServerConnection2(in, out, currNNIdx);
                 pool.execute(serverConnection);
             } catch (IOException e) {
@@ -121,7 +121,7 @@ public class Server2 {
                     synchronized (currSockets) {
                         for (int i = 0; i < currSockets.length; i++) {
                             if (currSockets[i].isClosed()) {
-                                reporter.report("client " + currNicknames[i] + " disconnected", 0);
+                                reporter.report("client " + currNicknames[i] + " disconnected", 0, "black");
                                 removeNickname(i);
                             }
                         }
@@ -206,23 +206,23 @@ public class Server2 {
                     try {
                         currCmd = ((StringObject2) in.readObject()).toString();
                     } catch (SocketTimeoutException e) {
-                        reporter.report("Input timeout for " + currNickname, 0);
+                        reporter.report("Input timeout for " + currNickname, 0, "white");
                         continue;
                     }
                     if (inChannel) {
                         if (!cmd(currCmd)) {
                             currChannel("").addMessage("FROM: " + currNickname + currCmd);
-                            reporter.report("client " + currNickname + " sent message to channel", 1);
+                            reporter.report("client " + currNickname + " sent message to channel", 1, "purple");
                             continue;
                         }
                     }
 
-                    reporter.report("client " + currNickname + " sent command " + currCmd, 1);
+                    reporter.report("client " + currNickname + " sent command " + currCmd, 1, "purple");
 
                     if (currCmd.equals("/help")) {
                         out.writeObject(new StringObject2(helpMsg));
                         out.flush();
-                        reporter.report("sent help message to client " + currNickname, 1);
+                        reporter.report("sent help message to client " + currNickname, 1, "blue");
 
                     } else if (currCmd.startsWith("/nick") && currCmd.length() >= 7
                             && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")) {
@@ -235,7 +235,7 @@ public class Server2 {
                                 out.flush();
                                 reporter.report(
                                         currNickname + " attempted to change nickname into a non-unique value",
-                                        1);
+                                        1, "red");
                                 unique = false;
                                 break;
                             }
@@ -254,7 +254,7 @@ public class Server2 {
                                 out.writeObject(new StringObject2("your new nickname is " + newNickname));
                                 out.flush();
                                 reporter.report(oldNickname + " changed the nickname to " + newNickname,
-                                        1);
+                                        1, "yellow");
                             }
                         }
 
@@ -297,7 +297,7 @@ public class Server2 {
                                 s1 = "joined existing channel " + channelToJoin.name;
                                 reporter.report(
                                         currNickname + " joined existing channel " + channelToJoin.name,
-                                        1);
+                                        1, "cyan");
 
                             } else { // create new channel
                                 channelToJoin = new ChannelInfo(possChannelName, currNickname);
@@ -305,7 +305,7 @@ public class Server2 {
                                 s1 = "created a new channel called " + channelToJoin.name;
                                 reporter.report(
                                         currNickname + " created a new channel called " + channelToJoin.name,
-                                        1);
+                                        1, "cyan");
                             }
                             s1 += ". Chat messages will now display. Any non-command message you enter will now display in the channel. Commands will still work in addition to chat messages.";
                             out.writeObject(new StringObject2(s1));
@@ -329,14 +329,14 @@ public class Server2 {
                                         new StringObject2(
                                                 "Bad leave command, likely due to incorrect usage of the optional [<channel>] arg (not entering the channel name correctly). An easier command to use is to simply use \"/leave\", which will leave the current channel."));
                                 out.flush();
-                                reporter.report("sent /leave retry message to client " + currNickname, 1);
+                                reporter.report("sent /leave retry message to client " + currNickname, 1, "cyan");
                             } else {// actually leave the channel
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
                                 channelToLeave.members.remove(currNickname);
                                 out.writeObject(new StringObject2(msgs + "\nleft channel " + channelToLeave.name));
                                 out.flush();
-                                reporter.report(currNickname + " left channel " + channelToLeave.name, 1);
+                                reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
                                 inChannel = false;
                             }
                         } // end sync
@@ -349,13 +349,13 @@ public class Server2 {
                             ChannelInfo channelToLeave = currChannel("");
                             if (channelToLeave == null) {
                                 quitMsg += "Internal error, while quitting your channel was not found.\n";
-                                reporter.report(currNickname + " could not leave channel while quitting", 0);
+                                reporter.report(currNickname + " could not leave channel while quitting", 0, "red");
                             } else {// actually leave the channel
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
                                 channelToLeave.members.remove(currNickname);
                                 quitMsg += msgs + "\nleft channel " + channelToLeave.name;
-                                reporter.report(currNickname + " left channel " + channelToLeave.name, 1);
+                                reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
                             }
                         }
                         out.writeObject(new StringObject2(
@@ -372,14 +372,14 @@ public class Server2 {
                                 new StringObject2(
                                         "Bad command due to improper syntax (i.e. spacing) or usage. Examples include joining a channel while in another one, or leaving a channel that you aren't currently in. Try again"));
                         out.flush();
-                        reporter.report("sent retry message to client " + currNickname, 1);
+                        reporter.report("sent retry message to client " + currNickname, 1, "cyan");
                     } // end else
                 } // end while
 
             } catch (IOException e) {
-                reporter.report("client " + currNickname + " disconnected", 0);
+                reporter.report("client " + currNickname + " disconnected", 0, "red");
             } catch (Exception e) {
-                reporter.report("exception " + e.toString() + " occurred", 0);
+                reporter.report("exception " + e.toString() + " occurred", 0, "red");
             }
         }
     }

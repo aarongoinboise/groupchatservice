@@ -7,12 +7,12 @@ public class Reporter2 {
         tC = new TermColors();
     }
 
-    public void report(String msg, int msgLevel) {
+    public void report(String msg, int msgLevel, String termWord) {
         if (msgLevel == 0) {
-            tC.colorPrint("green", msg);
+            tC.colorPrint(termWord, msg);
         } else {
             if (debugLevel == 1) {
-                tC.colorPrint("green", msg);
+                tC.colorPrint(termWord, msg);
             }
         }
     }

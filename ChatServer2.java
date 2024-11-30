@@ -10,7 +10,7 @@ public class ChatServer2 {
             /* Shutdown hook part, happens during ctrl-c */
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 if (shutdownHook) {
-                    reporter.report("Shutting down server...", 1);
+                    reporter.report("Shutting down server...", 1, "white");
                 }
             }));
             s.startServer();

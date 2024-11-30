@@ -1,5 +1,6 @@
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 public class TermColors {
     private static final String[] colors = {
@@ -11,6 +12,7 @@ public class TermColors {
     };
     private static Map<String, String> colorMap = new HashMap<>();
     private static final String reset = "\u001B[0m";
+    private Random r = new Random();
 
     public TermColors() {
         for (int i = 0; i < colorWords.length; i++) {
@@ -23,6 +25,10 @@ public class TermColors {
     }
 
     private String termWordToColor(String termWord) {
+        if (termWord.equals("random")) {
+            int poss = r.nextInt(8);
+            termWord = colorWords[poss];
+        }
         for (Map.Entry<String, String> entry : colorMap.entrySet()) {
             if (termWord.equals(entry.getKey())) {
                 return entry.getValue();
