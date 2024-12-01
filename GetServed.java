@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
@@ -27,6 +28,8 @@ public class GetServed {
     private static String[] cmds = { "/connect", "/nick", "/list", "/join", "/leave", "/quit", "/help" };
     private Timer shutdownTimer;
     private boolean idle;
+    private Object idxLock;
+    private Object idleLock;
 
     public GetServed(int port, Reporter reporter) throws IOException {
         serverSocket = new ServerSocket(port);
@@ -44,6 +47,8 @@ public class GetServed {
                 "/quit\tLeave chat and disconnect from server\n" +
                 "/help\tPrint out help message";
         shutdownTimer = new Timer();
+        idxLock = new Object();
+        idleLock = new Object();
         startTimer();
     }
 
@@ -51,41 +56,51 @@ public class GetServed {
         reporter.report("starting shutdown timer", 1, "green");
         shutdownTimer.cancel();
         shutdownTimer = new Timer();
-
         TimerTask task = new TimerTask() {
             public void run() {
-                if (idle) {
-                    try {
-                        serverSocket.close();
-                    } catch (IOException e) {
-                        reporter.report("couldn't close server socket", 0, "red");
+                synchronized (idleLock) {
+                    if (idle) {
+                        try {
+                            synchronized (serverSocket) {
+                                serverSocket.close();
+                            }
+                        } catch (IOException e) {
+                            reporter.report("couldn't close server socket", 0, "red");
+                        }
                     }
                 }
             }
         };
-
         shutdownTimer.schedule(task, 180000);
     }
 
-    public synchronized void removeNickname(int idx) {
-        currNicknames[idx] = null;
-        String[] newArray = new String[4];
-        Socket[] newSocks = new Socket[4];
-        int newIdx = 0;
-        for (int i = 0; i < currNicknames.length; i++) {
-            if (currNicknames[i] != null) {
-                newArray[newIdx] = currNicknames[i];
-                newSocks[newIdx] = currSockets[i];
-                newIdx++;
+    public void removeNickname(int idx) {
+        synchronized (currNicknames) {
+            synchronized (currSockets) {
+                currNicknames[idx] = null;
+                String[] newArray = new String[4];
+                Socket[] newSocks = new Socket[4];
+                int newIdx = 0;
+                for (int i = 0; i < currNicknames.length; i++) {
+                    if (currNicknames[i] != null) {
+                        newArray[newIdx] = currNicknames[i];
+                        newSocks[newIdx] = currSockets[i];
+                        newIdx++;
+                    }
+                }
+                if (emptyArray(newArray)) {
+                    synchronized (idleLock) {
+                        idle = true;
+                    }
+                    startTimer();
+                }
+                synchronized (idxLock) {
+                    nickNameIdxMain = newIdx;
+                }
+                currNicknames = newArray;
+                currSockets = newSocks;
             }
         }
-        if (emptyArray(newArray)) {
-            idle = true;
-            startTimer();
-        }
-        nickNameIdxMain = newIdx;
-        currNicknames = newArray;
-        currSockets = newSocks;
     }
 
     private boolean emptyArray(String[] array) {
@@ -98,28 +113,41 @@ public class GetServed {
     }
 
     public void youGotServed() {
-        reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
-                + " waiting for clients...", 1, "blue");
+        synchronized (serverSocket) {
+            reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
+                    + " waiting for clients...", 1, "blue");
+        }
         while (true) {
             try {
-                Socket client = serverSocket.accept();
-                client.setSoTimeout(5000);
-                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-                currNicknames[nickNameIdxMain] = "default" + nickNameIdxMain;
-                currSockets[nickNameIdxMain] = client;
-                idle = false;
-                int currNNIdx = nickNameIdxMain;
-                if (nickNameIdxMain == 3) {
-                    nickNameIdxMain = 0;
-                } else {
-                    nickNameIdxMain++;
+                synchronized (serverSocket) {
+                    Socket client = serverSocket.accept();
+                    client.setSoTimeout(5000);
+                    ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+                    ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                    synchronized (currNicknames) {
+                        synchronized (currSockets) {
+                            currNicknames[nickNameIdxMain] = "default" + nickNameIdxMain;
+                            currSockets[nickNameIdxMain] = client;
+                        }
+                    }
+                    synchronized (idleLock) {
+                        idle = false;
+                    }
+                    synchronized (idxLock) {
+                        int currNNIdx = nickNameIdxMain;
+                        if (nickNameIdxMain == 3) {
+                            nickNameIdxMain = 0;
+                        } else {
+                            nickNameIdxMain++;
+                        }
+                        out.writeObject(new StringObject("default" + nickNameIdxMain));
+                        out.flush();
+                        reporter.report("new client connection: default" + nickNameIdxMain, 1, "yellow");
+
+                        ServerThread serverConnection = new ServerThread(in, out, currNNIdx);
+                        pool.execute(serverConnection);
+                    }
                 }
-                out.writeObject(new StringObject("default" + nickNameIdxMain));
-                out.flush();
-                reporter.report("new client connection: default" + nickNameIdxMain, 1, "yellow");
-                ServerConnection2 serverConnection = new ServerConnection2(in, out, currNNIdx);
-                pool.execute(serverConnection);
             } catch (IOException e) {
                 synchronized (currNicknames) {
                     synchronized (currSockets) {
@@ -146,50 +174,56 @@ public class GetServed {
     }
 
     // ServerConnection2 implements Runnable instead of extending Thread
-    private class ServerConnection2 implements Runnable {
+    private class ServerThread implements Runnable {
         private ObjectInputStream in;
         private ObjectOutputStream out;
         private String currNickname;
         private int nickNameIdx;
         private boolean inChannel;
 
-        private ServerConnection2(ObjectInputStream in, ObjectOutputStream out, int nickNameIdx) {
+        private ServerThread(ObjectInputStream in, ObjectOutputStream out, int nickNameIdx) {
             this.in = in;
             this.out = out;
             this.nickNameIdx = nickNameIdx;
-            this.currNickname = currNicknames[nickNameIdx];
+            synchronized (currNicknames) {
+                this.currNickname = currNicknames[nickNameIdx];
+            }
             this.inChannel = false;
         }
 
-        private synchronized String sendMessages() {
-            ChannelInfo currChannel = null;
-            for (ChannelInfo channel : channels) {
-                if (channel.members.keySet().contains(currNickname)) {
-                    currChannel = channel;
-                    break;
+        private String sendMessages() {
+            synchronized (channels) {
+                ChannelInfo currChannel = null;
+                for (ChannelInfo channel : channels) {
+                    if (channel.getMembers().contains(currNickname)) {
+                        currChannel = channel;
+                        break;
+                    }
                 }
-            }
-            if (currChannel != null) {
-                return currChannel.sendMessages(currNickname);
+                if (currChannel != null) {
+                    return currChannel.sendMessages(currNickname);
+                }
             }
             return "";
         }
 
-        private synchronized ChannelInfo currChannel(String channelName) {
-            ChannelInfo channelToPick = null;
-            for (ChannelInfo channel : channels) {
-                if (channel.members.keySet().contains(currNickname)) {
-                    // check that it equals channelToLeave if needed
-                    if (!channelName.equals("")
-                            && channelName.equals(channel.name)) {// correct command
-                        channelToPick = channel;
-                    } else if (channelName.equals("")) {
-                        channelToPick = channel;
+        private ChannelInfo currChannel(String channelName) {
+            synchronized (channels) {
+                ChannelInfo channelToPick = null;
+                for (ChannelInfo channel : channels) {
+                    if (channel.getMembers().contains(currNickname)) {
+                        // check that it equals channelToLeave if needed
+                        if (!channelName.equals("")
+                                && channelName.equals(channel.name)) {// correct command
+                            channelToPick = channel;
+                        } else if (channelName.equals("")) {
+                            channelToPick = channel;
+                        }
+                        break;
                     }
-                    break;
                 }
+                return channelToPick;
             }
-            return channelToPick;
         }
 
         @Override
@@ -275,7 +309,7 @@ public class GetServed {
                                 for (ChannelInfo channel : channels) {
                                     cInfo += "-\n";
                                     cInfo += "Channel name with members below: " + channel.name + "\n";
-                                    for (String member : channel.members.keySet()) {
+                                    for (String member : channel.getMembers()) {
                                         cInfo += member + "\n";
                                     }
                                     cInfo += "-\n";
@@ -308,7 +342,9 @@ public class GetServed {
 
                             } else { // create new channel
                                 channelToJoin = new ChannelInfo(possChannelName, currNickname);
-                                channels.add(channelToJoin);
+                                synchronized (channels) {
+                                    channels.add(channelToJoin);
+                                }
                                 s1 = "created a new channel called " + channelToJoin.name;
                                 reporter.report(
                                         currNickname + " created a new channel called " + channelToJoin.name,
@@ -318,7 +354,7 @@ public class GetServed {
                             out.writeObject(new StringObject(s1));
                             out.flush();
                             inChannel = true;
-                        }
+                        } // end sync
 
                     } else if ((currCmd.startsWith("/leave")
                             && (currCmd.length() >= 8 && !currCmd.substring(7).trim().isEmpty()
@@ -340,7 +376,7 @@ public class GetServed {
                             } else {// actually leave the channel
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
-                                channelToLeave.members.remove(currNickname);
+                                channelToLeave.removeMember(currNickname);
                                 out.writeObject(new StringObject(msgs + "\nleft channel " + channelToLeave.name));
                                 out.flush();
                                 reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
@@ -360,18 +396,22 @@ public class GetServed {
                             } else {// actually leave the channel
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
-                                channelToLeave.members.remove(currNickname);
+                                channelToLeave.removeMember(currNickname);
                                 quitMsg += msgs + "\nleft channel " + channelToLeave.name;
                                 reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
                             }
                         }
-                        out.writeObject(new StringObject(
-                                quitMsg + "\nLeaving server " + serverSocket.getInetAddress() + "..."));
+                        synchronized (serverSocket) {
+                            out.writeObject(new StringObject(
+                                    quitMsg + "\nLeaving server " + serverSocket.getInetAddress() + "..."));
+                        }
                         out.flush();
                         removeNickname(nickNameIdx);
                         in.close();
                         out.close();
-                        currSockets[nickNameIdx].close();
+                        synchronized (currSockets) {
+                            currSockets[nickNameIdx].close();
+                        }
                         open = false;
 
                     } else {
@@ -405,7 +445,15 @@ public class GetServed {
             channelColors = TermColors.channelColors();
         }
 
-        private void addMember(String newMember) {
+        private synchronized Set<String> getMembers() {
+            return members.keySet();
+        }
+
+        private synchronized void removeMember(String mem) {
+            members.remove(mem);
+        }
+
+        private synchronized void addMember(String newMember) {
             String color = channelColors.remove(0);
             members.put(newMember, color);
             channelColors.add(color);
@@ -413,12 +461,13 @@ public class GetServed {
 
         private synchronized void addMessage(String message) {
             for (Entry<String, String> member : members.entrySet()) {
-                messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>()).add(member.getValue() + message + TermColors.reset);
+                messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>())
+                        .add(member.getValue() + message + TermColors.reset);
             }
         }
 
         private synchronized void changeNickName(String oldN, String newN) {
-            members.remove(oldN);
+            removeMember(oldN);
             addMember(newN);
             ArrayList<String> m = messages.remove(oldN);
             if (m != null && !m.isEmpty()) {

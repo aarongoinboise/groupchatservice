@@ -12,6 +12,7 @@ import java.util.TimerTask;
  */
 public class ChatClient {
     public static Scanner inputScanner;
+    public static Scanner sockScan;
     private static Reporter reporter = new Reporter(1);
     // public static String nickname;
 
@@ -23,12 +24,15 @@ public class ChatClient {
     @SuppressWarnings("resource")
     public static void main(String args[]) {
         while (true) {
-            inputScanner = new Scanner(System.in);
-            reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
-            String connectCmd = inputScanner.nextLine();
+            String connectCmd;
+            synchronized (inputScanner) {
+                inputScanner = new Scanner(System.in);
+                reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
+                connectCmd = inputScanner.nextLine();
+            }
             Socket socket = null;
             try {
-                Scanner sockScan = new Scanner(connectCmd);
+                sockScan = new Scanner(connectCmd);
                 sockScan.useDelimiter("\\s+");
                 String cmd = sockScan.next();
                 if (!cmd.equals("/connect")) {
@@ -67,8 +71,11 @@ public class ChatClient {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 reporter.report("Connection with server " + socket.getInetAddress() + " established!", 1, "green");
-                reporter.report("Current nickname: " + ((StringObject) in.readObject()).toString() + ". To change, use the /nick command", 1, "yellow");
+                reporter.report("Current nickname: " + ((StringObject) in.readObject()).toString()
+                        + ". To change, use the /nick command", 1, "yellow");
                 String[] cmd = new String[1];
+
+
                 while (connected) {
                     if (socket.isClosed()) {
                         connected = false;
@@ -91,7 +98,9 @@ public class ChatClient {
                     }, 5000);
                     Thread inputThread = new Thread(() -> {
                         try {
-                            cmd[0] = inputScanner.nextLine();
+                            synchronized (inputScanner) {
+                                cmd[0] = inputScanner.nextLine();
+                            }
                         } catch (IndexOutOfBoundsException e) {
                         }
                     });
@@ -113,17 +122,17 @@ public class ChatClient {
                     String response = ((StringObject) in.readObject()).toString();
                     // check responses, which will change the protocols
                     // if (response.startsWith("joined existing channel")
-                    //         || response.startsWith("created a new channel")) {
+                    // || response.startsWith("created a new channel")) {
 
-                    // } else if (response.contains("left channel") && !response.contains("Leaving server")) {
+                    // } else if (response.contains("left channel") && !response.contains("Leaving
+                    // server")) {
 
-                    // } else 
+                    // } else
                     if (response.contains("Leaving server")) {
                         connected = false;
 
-                    } 
+                    }
                     reporter.report(response, 1, "random");
-
                 } // end connected while
 
             } catch (IOException | ClassNotFoundException e) {
