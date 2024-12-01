@@ -58,7 +58,20 @@ Note: The port number is used to connect with clients. Debug level 0 means that 
 
 - There were also other approaches we tested to ensure that a client can get the messages displayed in a channel they are in. One of those included a soTimeout on the respective sockets. Another included an additional thread for displaying channel messages whenever they came in. However, it was settled that the easiest way to handle this is another command (/refresh), which will allow the client to decide if they want to see the updated messages. The best part about this is that we didn't have to change the existing protocol.
 
+- Debugging is tough with multi-threading. Therefore, there were strategic print statements we used to determine the cause of certain errors. This led us to catching exceptions in certain areas as well as using synchronization blocks. This helped prevent incorrect values and breakings of the protocol.
+
 ##	A section on observations/reflection on your development process and the roles of each team member
+
+We used an all hands on deck approach. Our group made sure to work in stages, and contribute at each stage. The easiest way to define this is the following:
+- Basic Client and Server with one read/write operation and a serialized object
+- Basic Client and Server with "easy commands" (/list and /help)
+- Basic Client and Server with all commands
+- Advanced Client and Server with multithreading and one channel
+- Advanced Client and Server with multithreading and multiple channels
+
+This was sometimes fluid, as we had to go back to previous stages at times. However, it kept us on track, and let us not get ahead of ourselves. 
+
+An important note is that Aaron did this project before in Distributed Systems last semester. The formatting on the previous project was influential in this process, especially deciding on a server heavy design. This meant the server keeps track of client and channel information, which allows for less steps in the protocol. Also, things regarding the usage of a fixed thread pool for clients, as well as a TimerTask for the 3 minute idle counting of the server were inspired by that assignment. However, there are many differences, such as a reporter for printing messages as well as the decision to write a blank message to the client if they weren't in a channel (instead of a series of messages they haven't read yet in the channel). You'll also notice that synchronization key words on objects and Object locks were used more often. This gave everyone in the group a chance to contribute and create a unique project.
 
 ##  Sources
 
