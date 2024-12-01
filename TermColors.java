@@ -46,7 +46,7 @@ public class TermColors {
     }
 
     public static List<String> channelColors() {
-        List<String> colorsList = new ArrayList<>(List.of(colorWords));
+        ArrayList<String> colorsList = new ArrayList<>(List.of(colorWords));
         Collections.shuffle(colorsList);
         return colorsList.subList(0, 4);
     }
