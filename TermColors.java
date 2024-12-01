@@ -7,14 +7,14 @@ import java.util.Random;
 
 public class TermColors {
     private static final String[] colors = {
-            "\u001B[30m", "\u001B[31m", "\u001B[32m", "\u001B[33m", "\u001B[34m", "\u001B[35m", "\u001B[36m",
-            "\u001B[37m",
+            "\u001B[47m\u001B[30m", "\u001B[31m", "\u001B[32m", "\u001B[33m", "\u001B[34m", "\u001B[35m", "\u001B[36m",
+            "\u001B[40m\u001B[37m",
     };
     private static final String[] colorWords = {
             "black", "red", "green", "yellow", "blue", "purple", "cyan", "white"
     };
     private static Map<String, String> colorMap = new HashMap<>();
-    public static final String reset = "\u001B[0m";
+    private static final String reset = "\u001B[0m";
     private static Random r = new Random();
 
     public TermColors() {
@@ -28,7 +28,9 @@ public class TermColors {
     }
 
     public void simpleColorPrint(String colorMsg) {
-        System.out.println(colorMsg);
+        int index = colorMsg.indexOf('|');
+        String restOfMsg = colorMsg.substring(index + 1);
+        colorPrint(colorMsg.substring(0, index), restOfMsg);
     }
 
     private String termWordToColor(String termWord) {

@@ -3,7 +3,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -25,7 +24,8 @@ public class GetServed {
     private Socket[] currSockets;
     private ArrayList<ChannelInfo> channels;
     private String helpMsg;
-    private static String[] cmds = { "/connect", "/nick", "/list", "/join", "/leave", "/quit", "/help" };
+    private static String[] cmds = { "/connect", "/refresh", "/nick", "/list", "/join", "/leave", "/quit",
+            "/help" };
     private Timer shutdownTimer;
     private boolean idle;
     private Object idxLock;
@@ -43,6 +43,7 @@ public class GetServed {
                 "/nick <nickname>\tPick a nickname (should be unique among active users)\n" +
                 "/list\tList channels and number of users\n" +
                 "/join <channel>\tJoin a channel, all text typed is sent to all users on the channel\n" +
+                "/refresh\tUpdates screen with new messages if you are in a channel\n" +
                 "/leave [<channel>]\tLeave the current (or named) channel\n" +
                 "/quit\tLeave chat and disconnect from server\n" +
                 "/help\tPrint out help message";
@@ -121,7 +122,6 @@ public class GetServed {
             try {
                 synchronized (serverSocket) {
                     Socket client = serverSocket.accept();
-                    client.setSoTimeout(5000);
                     ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                     ObjectInputStream in = new ObjectInputStream(client.getInputStream());
                     synchronized (currNicknames) {
@@ -179,7 +179,7 @@ public class GetServed {
         private ObjectOutputStream out;
         private String currNickname;
         private int nickNameIdx;
-        private boolean inChannel;
+        private ChannelInfo currChannel;
 
         private ServerThread(ObjectInputStream in, ObjectOutputStream out, int nickNameIdx) {
             this.in = in;
@@ -188,7 +188,7 @@ public class GetServed {
             synchronized (currNicknames) {
                 this.currNickname = currNicknames[nickNameIdx];
             }
-            this.inChannel = false;
+            this.currChannel = null;
         }
 
         private String sendMessages() {
@@ -207,53 +207,48 @@ public class GetServed {
             return "";
         }
 
-        private ChannelInfo currChannel(String channelName) {
-            synchronized (channels) {
-                ChannelInfo channelToPick = null;
-                for (ChannelInfo channel : channels) {
-                    if (channel.getMembers().contains(currNickname)) {
-                        // check that it equals channelToLeave if needed
-                        if (!channelName.equals("")
-                                && channelName.equals(channel.name)) {// correct command
-                            channelToPick = channel;
-                        } else if (channelName.equals("")) {
-                            channelToPick = channel;
-                        }
-                        break;
-                    }
-                }
-                return channelToPick;
-            }
-        }
-
         @Override
         public void run() {
             try {
                 boolean open = true;
                 while (open) {
                     String currCmd = "";
-                    if (inChannel) {
+                    if (currChannel != null) {
                         // check if message is to be sent or and check the inputs if any
-                        String cMs = currChannel("").sendMessages(helpMsg);
-                        out.writeObject(new StringObject(cMs));
-                        out.flush();
+                        String cMs = sendMessages();
+                        if (cMs.isBlank()) {
+                            out.writeObject(new StringObject("No new messages..."));
+                            out.flush();
+                        } else {
+                            out.writeObject(new StringObject(cMs));
+                            out.flush();
+                        }
                     } else {// just send blank message
                         out.writeObject(new StringObject(""));
                         out.flush();
                     }
-                    try {
-                        currCmd = ((StringObject) in.readObject()).toString();
-                    } catch (SocketTimeoutException e) {
-                        reporter.report("Input timeout for " + currNickname, 0, "white");
-                        continue;
-                    }
-                    if (inChannel) {
+                    currCmd = ((StringObject) in.readObject()).toString();
+                    if (currChannel != null) {
+                        if (currCmd.isBlank()) {
+                            out.writeObject(
+                                    new StringObject("no blank messages allowed, because they server no purpose."));
+                            out.flush();
+                            continue;
+                        }
                         if (!cmd(currCmd)) {
+                            System.out.println(currCmd);
                             Date date = new Date();
                             SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
                             String fD = sdf.format(date);
-                            currChannel("").addMessage("FROM: " + currNickname + " | " + fD + " | " + currCmd);
-                            reporter.report("client " + currNickname + " sent message to channel", 1, "purple");
+                            currChannel
+                                    .addMessage("FROM: " + currNickname + " | DATE: " + fD + " | MESSAGE: " + currCmd);
+                            reporter.report("client " + currNickname + " sent message to channel ", 1, "purple");
+                            out.writeObject(new StringObject("added message to channel"));
+                            out.flush();
+                            continue;
+                        } else if (currCmd.equals("/refresh")) {
+                            out.writeObject(new StringObject("refreshing channel messages..."));
+                            out.flush();
                             continue;
                         }
                     }
@@ -287,9 +282,8 @@ public class GetServed {
                                 String oldNickname = currNicknames[nickNameIdx];
                                 currNicknames[nickNameIdx] = newNickname;
                                 // change in channel
-                                if (inChannel) {
-                                    ChannelInfo chan = currChannel("");
-                                    chan.changeNickName(oldNickname, newNickname);
+                                if (currChannel != null) {
+                                    currChannel.changeNickName(oldNickname, newNickname);
                                 }
 
                                 out.writeObject(new StringObject("your new nickname is " + newNickname));
@@ -308,7 +302,7 @@ public class GetServed {
                             } else {
                                 for (ChannelInfo channel : channels) {
                                     cInfo += "-\n";
-                                    cInfo += "Channel name with members below: " + channel.name + "\n";
+                                    cInfo += "Channel name with members below: " + channel.getName() + "\n";
                                     for (String member : channel.getMembers()) {
                                         cInfo += member + "\n";
                                     }
@@ -320,13 +314,13 @@ public class GetServed {
                         out.flush();
                     } else if (currCmd.startsWith("/join") && currCmd.length() >= 7
                             && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")
-                            && !inChannel) {
+                            && currChannel == null) {
                         String possChannelName = currCmd.substring(6);
                         synchronized (channels) {
                             ChannelInfo channelToJoin = null;
                             if (!channels.isEmpty()) {
                                 for (ChannelInfo channel : channels) {
-                                    if (channel.name.equals(possChannelName)) {
+                                    if (channel.getName().equals(possChannelName)) {
                                         channelToJoin = channel;
                                         break;
                                     }
@@ -335,39 +329,38 @@ public class GetServed {
                             String s1;
                             if (channelToJoin != null) {
                                 channelToJoin.addMember(currNickname);
-                                s1 = "joined existing channel " + channelToJoin.name;
+                                s1 = "joined existing channel " + channelToJoin.getName();
                                 reporter.report(
-                                        currNickname + " joined existing channel " + channelToJoin.name,
+                                        currNickname + " joined existing channel " + channelToJoin.getName(),
                                         1, "cyan");
 
                             } else { // create new channel
                                 channelToJoin = new ChannelInfo(possChannelName, currNickname);
                                 synchronized (channels) {
                                     channels.add(channelToJoin);
+                                    currChannel = channelToJoin;
                                 }
-                                s1 = "created a new channel called " + channelToJoin.name;
+                                s1 = "created a new channel called " + channelToJoin.getName();
                                 reporter.report(
-                                        currNickname + " created a new channel called " + channelToJoin.name,
+                                        currNickname + " created a new channel called " + channelToJoin.getName(),
                                         1, "cyan");
                             }
                             s1 += ". Chat messages will now display. Any non-command message you enter will now display in the channel. Commands will still work in addition to chat messages.";
                             out.writeObject(new StringObject(s1));
                             out.flush();
-                            inChannel = true;
                         } // end sync
 
                     } else if ((currCmd.startsWith("/leave")
                             && (currCmd.length() >= 8 && !currCmd.substring(7).trim().isEmpty()
                                     && currCmd.substring(6, 7).equals(" ")))
-                            && inChannel) {
+                            && currChannel != null) {
                         // get substring if it exists
                         String channelToLeaveNameFromCmd = "";
                         if (currCmd.length() >= 8) {
                             channelToLeaveNameFromCmd = currCmd.substring(7);
                         }
                         synchronized (channels) {
-                            ChannelInfo channelToLeave = currChannel(channelToLeaveNameFromCmd);
-                            if (channelToLeave == null) {
+                            if (!channelToLeaveNameFromCmd.equals(currChannel.getName())) {
                                 out.writeObject(
                                         new StringObject(
                                                 "Bad leave command, likely due to incorrect usage of the optional [<channel>] arg (not entering the channel name correctly). An easier command to use is to simply use \"/leave\", which will leave the current channel."));
@@ -376,11 +369,11 @@ public class GetServed {
                             } else {// actually leave the channel
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
-                                channelToLeave.removeMember(currNickname);
-                                out.writeObject(new StringObject(msgs + "\nleft channel " + channelToLeave.name));
+                                currChannel.removeMember(currNickname);
+                                out.writeObject(new StringObject(msgs + "\nleft channel " + currChannel.getName()));
                                 out.flush();
-                                reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
-                                inChannel = false;
+                                reporter.report(currNickname + " left channel " + currChannel.getName(), 1, "black");
+                                currChannel = null;
                             }
                         } // end sync
 
@@ -388,8 +381,8 @@ public class GetServed {
                         // leave entire server
                         String quitMsg = "";
                         // leave channel
-                        if (inChannel) {
-                            ChannelInfo channelToLeave = currChannel("");
+                        if (currChannel != null) {
+                            ChannelInfo channelToLeave = currChannel;
                             if (channelToLeave == null) {
                                 quitMsg += "Internal error, while quitting your channel was not found.\n";
                                 reporter.report(currNickname + " could not leave channel while quitting", 0, "red");
@@ -397,8 +390,8 @@ public class GetServed {
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
                                 channelToLeave.removeMember(currNickname);
-                                quitMsg += msgs + "\nleft channel " + channelToLeave.name;
-                                reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
+                                quitMsg += msgs + "\nleft channel " + channelToLeave.getName();
+                                reporter.report(currNickname + " left channel " + channelToLeave.getName(), 1, "black");
                             }
                         }
                         synchronized (serverSocket) {
@@ -426,7 +419,7 @@ public class GetServed {
             } catch (IOException e) {
                 reporter.report("client " + currNickname + " disconnected", 0, "red");
             } catch (Exception e) {
-                reporter.report("exception " + e.toString() + " occurred", 0, "red");
+                reporter.report("exception occurred: " + e.toString(), 0, "red");
             }
         }
     }
@@ -440,9 +433,13 @@ public class GetServed {
         private ChannelInfo(String name, String firstMember) {
             this.name = name;
             members = new HashMap<>();
-            addMember(firstMember);
             messages = new HashMap<>();
             channelColors = TermColors.channelColors();
+            addMember(firstMember);
+        }
+
+        private synchronized String getName() {
+            return name;
         }
 
         private synchronized Set<String> getMembers() {
@@ -462,7 +459,7 @@ public class GetServed {
         private synchronized void addMessage(String message) {
             for (Entry<String, String> member : members.entrySet()) {
                 messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>())
-                        .add(member.getValue() + message + TermColors.reset);
+                        .add(member.getValue() + "|" + message);
             }
         }
 
