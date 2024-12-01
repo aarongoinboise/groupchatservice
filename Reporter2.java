@@ -8,6 +8,10 @@ public class Reporter2 {
     }
 
     public void report(String msg, int msgLevel, String termWord) {
+        if (termWord.equals("set")) {
+            
+        }
+
         if (msgLevel == 0) {
             tC.colorPrint(termWord, msg);
         } else {

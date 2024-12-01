@@ -77,7 +77,7 @@ public class ChatClient2 {
 
                     String possMsgs = ((StringObject2) in.readObject()).toString();
                     if (!possMsgs.isBlank()) {
-                        reporter.report(possMsgs, 1, "random");
+                        reporter.report(possMsgs, 1, "set");
                     }
 
                     // give user only 5 seconds to input

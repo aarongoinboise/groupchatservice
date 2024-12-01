@@ -1,4 +1,7 @@
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -11,8 +14,8 @@ public class TermColors {
             "black", "red", "green", "yellow", "blue", "purple", "cyan", "white"
     };
     private static Map<String, String> colorMap = new HashMap<>();
-    private static final String reset = "\u001B[0m";
-    private Random r = new Random();
+    public static final String reset = "\u001B[0m";
+    private static Random r = new Random();
 
     public TermColors() {
         for (int i = 0; i < colorWords.length; i++) {
@@ -24,10 +27,13 @@ public class TermColors {
         System.out.println(termWordToColor(termWord) + msg + reset);
     }
 
+    public void simpleColorPrint(String colorMsg) {
+        System.out.println(colorMsg);
+    }
+
     private String termWordToColor(String termWord) {
         if (termWord.equals("random")) {
-            int poss = r.nextInt(8);
-            termWord = colorWords[poss];
+            termWord = randomTermWord();
         }
         for (Map.Entry<String, String> entry : colorMap.entrySet()) {
             if (termWord.equals(entry.getKey())) {
@@ -35,5 +41,16 @@ public class TermColors {
             }
         }
         return reset;
+    }
+
+    public static List<String> channelColors() {
+        List<String> colorsList = new ArrayList<>(List.of(colorWords));
+        Collections.shuffle(colorsList);
+        return colorsList.subList(0, 4);
+    }
+
+    private static String randomTermWord() {
+        int poss = r.nextInt(8);
+        return colorWords[poss];
     }
 }

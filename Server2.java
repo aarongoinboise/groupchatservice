@@ -8,6 +8,9 @@ import java.util.Date;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
@@ -162,7 +165,7 @@ public class Server2 {
         private synchronized String sendMessages() {
             ChannelInfo currChannel = null;
             for (ChannelInfo channel : channels) {
-                if (channel.members.contains(currNickname)) {
+                if (channel.members.keySet().contains(currNickname)) {
                     currChannel = channel;
                     break;
                 }
@@ -176,7 +179,7 @@ public class Server2 {
         private synchronized ChannelInfo currChannel(String channelName) {
             ChannelInfo channelToPick = null;
             for (ChannelInfo channel : channels) {
-                if (channel.members.contains(currNickname)) {
+                if (channel.members.keySet().contains(currNickname)) {
                     // check that it equals channelToLeave if needed
                     if (!channelName.equals("")
                             && channelName.equals(channel.name)) {// correct command
@@ -273,7 +276,7 @@ public class Server2 {
                                 for (ChannelInfo channel : channels) {
                                     cInfo += "-\n";
                                     cInfo += "Channel name with members below: " + channel.name + "\n";
-                                    for (String member : channel.members) {
+                                    for (String member : channel.members.keySet()) {
                                         cInfo += member + "\n";
                                     }
                                     cInfo += "-\n";
@@ -298,7 +301,7 @@ public class Server2 {
                             }
                             String s1;
                             if (channelToJoin != null) {
-                                channelToJoin.members.add(currNickname);
+                                channelToJoin.addMember(currNickname);
                                 s1 = "joined existing channel " + channelToJoin.name;
                                 reporter.report(
                                         currNickname + " joined existing channel " + channelToJoin.name,
@@ -391,25 +394,33 @@ public class Server2 {
 
     private class ChannelInfo {
         String name;
-        ArrayList<String> members;
+        HashMap<String, String> members;
         HashMap<String, ArrayList<String>> messages;
+        List<String> channelColors;
 
         private ChannelInfo(String name, String firstMember) {
             this.name = name;
-            members = new ArrayList<String>();
-            members.add(firstMember);
+            members = new HashMap<>();
+            addMember(firstMember);
             messages = new HashMap<>();
+            channelColors = TermColors.channelColors();
+        }
+
+        private void addMember(String newMember) {
+            String color = channelColors.remove(0);
+            members.put(newMember, color);
+            channelColors.add(color);
         }
 
         private synchronized void addMessage(String message) {
-            for (String member : members) {
-                messages.computeIfAbsent(member, messages -> new ArrayList<String>()).add(message);
+            for (Entry<String, String> member : members.entrySet()) {
+                messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>()).add(member.getValue() + message + TermColors.reset);
             }
         }
 
         private synchronized void changeNickName(String oldN, String newN) {
             members.remove(oldN);
-            members.add(newN);
+            addMember(newN);
             ArrayList<String> m = messages.remove(oldN);
             if (m != null && !m.isEmpty()) {
                 messages.computeIfAbsent(newN, messages -> new ArrayList<String>()).add(String.join("\n", m));
