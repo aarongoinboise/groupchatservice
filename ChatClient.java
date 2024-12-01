@@ -4,8 +4,11 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Client side class for a chat server
@@ -73,9 +76,6 @@ public class ChatClient {
                 reporter.report("Connection with server " + socket.getInetAddress() + " established!", 1, "green");
                 reporter.report("Current nickname: " + ((StringObject) in.readObject()).toString()
                         + ". To change, use the /nick command", 1, "yellow");
-                String[] cmd = new String[1];
-
-
                 while (connected) {
                     if (socket.isClosed()) {
                         connected = false;
@@ -86,37 +86,16 @@ public class ChatClient {
                     if (!possMsgs.isBlank()) {
                         reporter.report(possMsgs, 1, "set");
                     }
-
-                    // give user only 5 seconds to input
-                    Timer timer = new Timer();
-                    boolean[] timesUp = { false };
-                    timer.schedule(new TimerTask() {
-                        @Override
-                        public void run() {
-                            timesUp[0] = true;
-                        }
-                    }, 5000);
-                    Thread inputThread = new Thread(() -> {
-                        try {
-                            synchronized (inputScanner) {
-                                cmd[0] = inputScanner.nextLine();
-                            }
-                        } catch (IndexOutOfBoundsException e) {
-                        }
-                    });
-                    inputThread.start();
-                    while (!timesUp[0] && cmd[0] == null)
-                        ;
-                    if (timesUp[0]) { // didn't scan in time
+                    String currCmd = getUserInputWithTimeout(5);
+                    if (currCmd == null) {
                         continue;
                     }
-                    timer.cancel();
 
-                    if (cmd[0].startsWith("/connect")) {
+                    if (currCmd.startsWith("/connect")) {
                         reporter.report("Already connected to server, you must disconnect first.", 1, "red");
                         continue;
                     }
-                    StringObject serializedCmd = new StringObject(cmd[0]);
+                    StringObject serializedCmd = new StringObject(currCmd);
                     out.writeObject(serializedCmd);
                     out.flush();
                     String response = ((StringObject) in.readObject()).toString();
@@ -141,5 +120,20 @@ public class ChatClient {
         } // end client while
 
     }// end main
+
+    private static String getUserInputWithTimeout(int timeoutSeconds) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<String> future = executor.submit(() -> inputScanner.nextLine());
+        try {
+            return future.get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            return null; // Input timed out
+        } catch (Exception e) {
+            return null; // Other error
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
 }
