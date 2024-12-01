@@ -29,10 +29,8 @@ public class ChatClient {
         inputScanner = new Scanner(System.in);
         while (true) {
             String connectCmd;
-            synchronized (inputScanner) {
-                reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
-                connectCmd = inputScanner.nextLine();
-            }
+            reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
+            connectCmd = inputScanner.nextLine();
             Socket socket = null;
             try {
                 sockScan = new Scanner(connectCmd);
