@@ -2,206 +2,131 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-
 
 /**
  * Client side class for a chat server
  */
 public class ChatClient {
-    public static final int NUM_THREADS = 2;//one thread for sending, one thread for recieving
-    public static ExecutorService pool;
-    public static final String CONNECT_COMMAND = "/connect ";
-    public static final String HELP_COMMAND = "/help";
-    public static final String QUIT_COMMAND = "/quit";
     public static Scanner inputScanner;
-    static boolean connected;//whether there is currently a connection to a server
-    static boolean scannerInServer;
-    static String userInput;
+    public static Scanner sockScan;
+    private static Reporter reporter = new Reporter(1);
+    private static boolean inChannel;
+    // public static String nickname;
 
     /**
      * Main for ChatClient: Connects to a server and uses protocol commands
      * 
      * @param args
      */
-    public static void main(String args[]){
-        connected = false;
-        scannerInServer = false;
+    @SuppressWarnings("resource")
+    public static void main(String args[]) {
         inputScanner = new Scanner(System.in);
-        printHelp();
-        while(true){
-            /* Wait for scanned input to finish */
-            if (!scannerInServer) {
-                userInput = inputScanner.nextLine();
-                /* Connects and starts threads for sending and receiving messages */
-                if(userInput.startsWith(CONNECT_COMMAND)){
-                    String serverAddress = userInput.substring(CONNECT_COMMAND.length()).split(" ")[0];
-                    int portNumber;
-                    try{
-                        portNumber = Integer.parseInt(userInput.substring(CONNECT_COMMAND.length()).split(" ")[1]);
-                    }
-                    catch(NumberFormatException | ArrayIndexOutOfBoundsException e){
-                        System.out.println("connection failed, unable to parse port#");
+        while (true) {
+            String connectCmd;
+            reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
+            try {
+                connectCmd = inputScanner.nextLine();
+            } catch (IndexOutOfBoundsException e) {
+                continue;
+            }
+            Socket socket = null;
+            try {
+                sockScan = new Scanner(connectCmd);
+                sockScan.useDelimiter("\\s+");
+                String cmd = sockScan.next();
+                if (!cmd.equals("/connect")) {
+                    reporter.report("Not a connect command, try again.", 1, "cyan");
+                    continue;
+                }
+                String host = sockScan.next();
+                String portS = sockScan.next();
+                char[] cs = portS.toCharArray();
+                if (sockScan.hasNext()) {
+                    sockScan.close();
+                    reporter.report("Bad connect command, try again.", 1, "cyan");
+                    continue;
+                }
+                sockScan.close();
+                for (char c : cs) {
+                    if (!Character.isDigit(c)) {
+                        reporter.report("Bad connect command, try again.", 1, "cyan");
                         continue;
                     }
-                    /* Tries to start send/receive message threads */
-                    pool = Executors.newFixedThreadPool(NUM_THREADS);
-                    new ChatClient().serverConnect(serverAddress, portNumber);
-                }// end connect command
-
-                else if (userInput.equals(QUIT_COMMAND)){//exit
-                    break;
-                } else if (userInput.equals(HELP_COMMAND)) {
-                    printHelp();
-                } else {
-                    System.out.println("command not recognized, type '/help' for a list of commands");
                 }
-
-            } else {
-                scannerInServer = false;
-                printHelp();
-            }
-        }
-    }
-
-    /**
-     * Connects to a chat server, sending, recieving and printing messages and commands appropiately
-     * 
-     * @param serverAddress address of server to connect to
-     * @param port port to connect to
-     */
-    public void serverConnect(String serverAddress, int port) {
-        Socket clientSocket;
-        ObjectOutputStream out;
-        ObjectInputStream in;
-        try {
-            clientSocket = new Socket(serverAddress, port);
-            out = new ObjectOutputStream(clientSocket.getOutputStream());
-            in = new ObjectInputStream(clientSocket.getInputStream());
-            connected = true;
-        } catch (IOException e) {
-            System.out.println("problem connecting to the server");
-            e.printStackTrace();
-            return;
-        }
-        /* At this point, connection is established. Send/Receive threads are started */
-        System.out.println("Connected to server " + serverAddress + " at port " + port);
-        pool.execute(new MessageReciever(in));
-        pool.execute(new MessageSender(out));
-
-        /* Stays conneted */
-        while(connected){
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                System.out.println("main interupted");
-                e.printStackTrace();
-            }
-        }
-
-        pool.shutdown();
-
-        /* Waits for all tasks in send/receive to finish, then closes socket */
-        try {
-            while (!pool.awaitTermination(1, TimeUnit.MILLISECONDS));
-            clientSocket.close();
-        } catch (IOException | InterruptedException e) {
-            System.out.println("problem closing socket");
-            e.printStackTrace();
-        }
-
-    }
-
-    /**
-     * Prints help message relevant to the client only
-     */
-    private static void printHelp(){
-        StringBuilder helpString = new StringBuilder();
-
-        helpString.append("Available client commands: ");
-        helpString.append("\n" + "_".repeat(32 + 55) + "\n");
-        helpString.append(String.format("| %-32s|%-55s\n", "COMMAND", "DESCRIPTION"));
-        helpString.append("_".repeat(32 + 55) + "\n");
-        helpString.append(String.format("| %-32s|%-55s\n", CONNECT_COMMAND + "<server-name> <port#>", "connect to server at address <server-name>"));
-        helpString.append("_".repeat(32 + 55) + "\n");
-        helpString.append(String.format("| %-32s|%-55s\n", QUIT_COMMAND, "close chat client"));
-        helpString.append("_".repeat(32 + 55) + "\n");
-        helpString.append(String.format("| %-32s|%-55s\n", HELP_COMMAND, "print out a help message"));
-        helpString.append("_".repeat(32 + 55) + "\n");
-
-        System.out.print(helpString.toString());
-    }
-
-    /**
-     * runnable class which waits for user input (a message to be sent on the chat server) and sends it to the chat server
-     */
-    private class MessageSender implements Runnable {
-        ObjectOutputStream outputStream;
-
-        /**
-         * Constructor: sets, OOS and scanner
-         * 
-         * @param outputStream vehicle that sends messages to server
-         * @param inputScanner same scanner as in main, scans user input to send msgs to server
-         */
-        public MessageSender(ObjectOutputStream outputStream){
-            this.outputStream = outputStream;
-        }
-
-        @Override
-        public void run() {
-            while(connected){
-                scannerInServer = true;
-                userInput = inputScanner.nextLine();
+                int port = Integer.parseInt(portS);
                 try {
-                    outputStream.writeObject(new ChatMessage(userInput));
-                    outputStream.flush();
-                    if(userInput.equals(QUIT_COMMAND)){
+                    socket = new Socket(host, port);
+                } catch (IOException e) {
+                    reporter.report("Bad connect command, try again.", 1, "cyan");
+                    continue;
+                }
+            } catch (NoSuchElementException e) {
+                reporter.report("Bad connect command, try again.", 1, "cyan");
+                continue;
+            }
+            boolean connected = true;
+            try {
+                inChannel = false;
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                reporter.report("Connection with server " + socket.getInetAddress() + " established!", 1, "green");
+                reporter.report("Current nickname: " + ((StringObject) in.readObject()).toString()
+                        + ". To change, use the /nick command", 1, "yellow");
+
+                while (connected) {
+                    if (socket.isClosed()) {
                         connected = false;
+                        continue;
                     }
 
-                } catch (IOException e) {
-                    connected = false;
-                }
-            }
-            printHelp();
-        }
+                    String possMsgs = ((StringObject) in.readObject()).toString();
+                    if (possMsgs.equals("No new messages...")) {
+                        reporter.report(possMsgs, 1, "blue");
+                    } else if (!possMsgs.isBlank()) {
+                        reporter.report(possMsgs, 1, "set");
+                    }
+                    if (!inChannel) {
+                    reporter.report("Enter a command: ", 1, "purple");
+                    } else {
+                        reporter.report("Enter a message to add to the channel or a command: ", 1, "purple");
+                    }
+                    String currCmd = inputScanner.nextLine();
+                    if (currCmd == null) {
+                        reporter.report(((StringObject) in.readObject()).toString(), 1, "black");
+                        continue;
+                    }
 
-    }
+                    if (currCmd.startsWith("/connect")) {
+                        reporter.report("Already connected to server, you must disconnect first.", 1, "red");
+                        continue;
+                    }
+                    StringObject serializedCmd = new StringObject(currCmd);
+                    out.writeObject(serializedCmd);
+                    out.flush();
+                    String response = ((StringObject) in.readObject()).toString();
+                    if (response.contains("Leaving server")) {
+                        connected = false;
+                    }
+                    if (response.contains("Chat messages will now display.")) {
+                        inChannel = true;
+                    }
+                    if (response.contains("left channel")) {
+                        inChannel = false;
+                    }
+                    reporter.report(response, 1, "random");
+                } // end connected while
 
-    /**
-     * runnable class which waits for messages from the chat server and displays them to the user
-     */
-    private class MessageReciever implements Runnable {
-        ObjectInputStream inputStream;
-
-        /**
-         * Constructor: sets inputStream
-         * 
-         * @param inputStream
-         */
-        public MessageReciever(ObjectInputStream inputStream){
-            this.inputStream = inputStream;
-        }
-
-        @Override
-        public void run() {
-            ChatMessage message;
-            while(connected){
+            } catch (IOException | ClassNotFoundException e) {
+                reporter.report("Possible server shutdown, connection ended.", 1, "red");
                 try {
-                    message = (ChatMessage) inputStream.readObject();
-                    System.out.println(message.getSender() + ": " + message.getMessage());
-                } catch (ClassNotFoundException | IOException e) {
-                    connected = false;
-                    break;
+                    socket.close();
+                } catch (IOException e1) {
                 }
             }
-        }
+        } // end client while
 
+    }// end main
 
-    }
 }
