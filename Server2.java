@@ -4,6 +4,8 @@ import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Timer;
@@ -211,7 +213,10 @@ public class Server2 {
                     }
                     if (inChannel) {
                         if (!cmd(currCmd)) {
-                            currChannel("").addMessage("FROM: " + currNickname + currCmd);
+                            Date date = new Date();
+                            SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
+                            String fD = sdf.format(date);
+                            currChannel("").addMessage("FROM: " + currNickname + " | " + fD + " | " + currCmd);
                             reporter.report("client " + currNickname + " sent message to channel", 1, "purple");
                             continue;
                         }

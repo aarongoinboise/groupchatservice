@@ -134,3 +134,4 @@ Once all these states were figured out, we connected them with the directions to
 [Shutdown hooks](https://www.geeksforgeeks.org/jvm-shutdown-hook-java/)\
 [Synchronization 1](https://www.geeksforgeeks.org/synchronization-in-java/)\
 [Synchronization 2](https://www.baeldung.com/java-synchronized)
+[Timestamp](https://stackoverflow.com/questions/8345023/need-to-get-current-timestamp-in-java)
