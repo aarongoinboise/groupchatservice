@@ -76,3 +76,12 @@ An important note is that Aaron did this project before in Distributed Systems l
 ##  Sources
 
 [How to randomize a list](https://www.geeksforgeeks.org/shuffle-or-randomize-a-list-in-java/#)
+[Color console](https://stackoverflow.com/questions/5762491/how-to-print-color-in-console-using-system-out-println)\
+[Makefile resource](https://stackoverflow.com/questions/32127524/how-to-install-and-use-make-in-windows)\
+[Oracle docs](https://docs.oracle.com/javase/8/docs/api/)\
+[Repeat method](https://www.geeksforgeeks.org/string-class-repeat-method-in-java-with-examples/)
+[Shutdown hooks](https://www.geeksforgeeks.org/jvm-shutdown-hook-java/)\
+[Synchronization 1](https://www.geeksforgeeks.org/synchronization-in-java/)\
+[Synchronization 2](https://www.baeldung.com/java-synchronized)
+[Timestamp](https://stackoverflow.com/questions/8345023/need-to-get-current-timestamp-in-java)
+p1 from Distributed Systems Spring 2024
