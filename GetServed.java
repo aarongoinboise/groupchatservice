@@ -38,15 +38,15 @@ public class GetServed {
         currNicknames = new String[4];
         currSockets = new Socket[4];
         channels = new ArrayList<ChannelInfo>();
-        helpMsg = "Command\tDescription\n" +
-                "/connect <server-name> [port#]\tConnect to named server (port# optional)\n" +
-                "/nick <nickname>\tPick a nickname (should be unique among active users)\n" +
-                "/list\tList channels and number of users\n" +
-                "/join <channel>\tJoin a channel, all text typed is sent to all users on the channel\n" +
-                "/refresh\tUpdates screen with new messages if you are in a channel\n" +
-                "/leave [<channel>]\tLeave the current (or named) channel\n" +
-                "/quit\tLeave chat and disconnect from server\n" +
-                "/help\tPrint out help message";
+        helpMsg = "\n-\n" +
+                "/connect <server-name> [port#]\n" + "Connect to named server (port# optional)\n\n" +
+                "/nick <nickname>\n" + "Pick a nickname (should be unique among active users)\n\n" +
+                "/list\n" + "List channels and number of users\n\n" +
+                "/join <channel>\n" + "Join a channel, all text typed is sent to all users on the channel\n\n" +
+                "/refresh\n" + "Updates screen with new messages if you are in a channel\n\n" +
+                "/leave [<channel>]\n" + "Leave the current (or named) channel\n\n" +
+                "/quit\n" + "Leave chat and disconnect from server\n\n" +
+                "/help\n" + "Print out help message\n-\n";
         shutdownTimer = new Timer();
         idxLock = new Object();
         idleLock = new Object();
@@ -265,15 +265,17 @@ public class GetServed {
                         String newNickname = currCmd.substring(6);
                         boolean unique = true;
                         // check if new nickname is unique among all users
-                        for (String n : currNicknames) {
-                            if (n.equals(newNickname)) {
-                                out.writeObject(new StringObject("the new nickname is not unique, try again"));
-                                out.flush();
-                                reporter.report(
-                                        currNickname + " attempted to change nickname into a non-unique value",
-                                        1, "red");
-                                unique = false;
-                                break;
+                        synchronized (currNicknames) {
+                            for (String n : currNicknames) {
+                                if (n != null && n.equals(newNickname)) {
+                                    out.writeObject(new StringObject("the new nickname is not unique, try again"));
+                                    out.flush();
+                                    reporter.report(
+                                            currNickname + " attempted to change nickname into a non-unique value",
+                                            1, "red");
+                                    unique = false;
+                                    break;
+                                }
                             }
                         }
                         if (unique) {
