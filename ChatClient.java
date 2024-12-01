@@ -23,10 +23,10 @@ public class ChatClient {
      */
     @SuppressWarnings("resource")
     public static void main(String args[]) {
+        inputScanner = new Scanner(System.in);
         while (true) {
             String connectCmd;
             synchronized (inputScanner) {
-                inputScanner = new Scanner(System.in);
                 reporter.report("Type '/connect <host> <port>' to start:", 1, "green");
                 connectCmd = inputScanner.nextLine();
             }
