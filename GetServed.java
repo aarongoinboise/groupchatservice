@@ -393,6 +393,7 @@ public class GetServed {
                                 quitMsg += msgs + "\nleft channel " + channelToLeave.getName();
                                 reporter.report(currNickname + " left channel " + channelToLeave.getName(), 1, "black");
                             }
+                            currChannel = null;
                         }
                         synchronized (serverSocket) {
                             out.writeObject(new StringObject(

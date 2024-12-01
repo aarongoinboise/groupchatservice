@@ -12,6 +12,7 @@ public class ChatClient {
     public static Scanner inputScanner;
     public static Scanner sockScan;
     private static Reporter reporter = new Reporter(1);
+    private static boolean inChannel;
     // public static String nickname;
 
     /**
@@ -67,6 +68,7 @@ public class ChatClient {
             }
             boolean connected = true;
             try {
+                inChannel = false;
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 reporter.report("Connection with server " + socket.getInetAddress() + " established!", 1, "green");
@@ -85,6 +87,11 @@ public class ChatClient {
                     } else if (!possMsgs.isBlank()) {
                         reporter.report(possMsgs, 1, "set");
                     }
+                    if (!inChannel) {
+                    reporter.report("Enter a command: ", 1, "purple");
+                    } else {
+                        reporter.report("Enter a message to add to the channel or a command: ", 1, "purple");
+                    }
                     String currCmd = inputScanner.nextLine();
                     if (currCmd == null) {
                         reporter.report(((StringObject) in.readObject()).toString(), 1, "black");
@@ -99,24 +106,24 @@ public class ChatClient {
                     out.writeObject(serializedCmd);
                     out.flush();
                     String response = ((StringObject) in.readObject()).toString();
-                    // check responses, which will change the protocols
-                    // if (response.startsWith("joined existing channel")
-                    // || response.startsWith("created a new channel")) {
-
-                    // } else if (response.contains("left channel") && !response.contains("Leaving
-                    // server")) {
-
-                    // } else
                     if (response.contains("Leaving server")) {
                         connected = false;
-
+                    }
+                    if (response.contains("Chat messages will now display.")) {
+                        inChannel = true;
+                    }
+                    if (response.contains("left channel")) {
+                        inChannel = false;
                     }
                     reporter.report(response, 1, "random");
                 } // end connected while
 
             } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
                 reporter.report("Possible server shutdown, connection ended.", 1, "red");
+                try {
+                    socket.close();
+                } catch (IOException e1) {
+                }
             }
         } // end client while
 
