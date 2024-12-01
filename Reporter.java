@@ -1,22 +1,22 @@
-public class Reporter2 {
+public class Reporter {
     private int debugLevel;
     private TermColors tC;
 
-    public Reporter2(int debugLevel) {
+    public Reporter(int debugLevel) {
         this.debugLevel = debugLevel;
         tC = new TermColors();
     }
 
     public void report(String msg, int msgLevel, String termWord) {
         if (termWord.equals("set")) {
-            
-        }
-
-        if (msgLevel == 0) {
-            tC.colorPrint(termWord, msg);
+            tC.simpleColorPrint(msg);
         } else {
-            if (debugLevel == 1) {
+            if (msgLevel == 0) {
                 tC.colorPrint(termWord, msg);
+            } else {
+                if (debugLevel == 1) {
+                    tC.colorPrint(termWord, msg);
+                }
             }
         }
     }

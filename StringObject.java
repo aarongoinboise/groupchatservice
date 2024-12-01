@@ -1,9 +1,9 @@
 import java.io.Serializable;
 
-public class StringObject2 implements Serializable {
+public class StringObject implements Serializable {
     private String message;
 
-    public StringObject2(String message) {
+    public StringObject(String message) {
         this.message = message;
     }
 

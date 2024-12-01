@@ -10,9 +10,9 @@ import java.util.TimerTask;
 /**
  * Client side class for a chat server
  */
-public class ChatClient2 {
+public class ChatClient {
     public static Scanner inputScanner;
-    private static Reporter2 reporter = new Reporter2(1);
+    private static Reporter reporter = new Reporter(1);
     // public static String nickname;
 
     /**
@@ -67,7 +67,7 @@ public class ChatClient2 {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 reporter.report("Connection with server " + socket.getInetAddress() + " established!", 1, "green");
-                reporter.report("Current nickname: " + ((StringObject2) in.readObject()).toString() + ". To change, use the /nick command", 1, "yellow");
+                reporter.report("Current nickname: " + ((StringObject) in.readObject()).toString() + ". To change, use the /nick command", 1, "yellow");
                 String[] cmd = new String[1];
                 while (connected) {
                     if (socket.isClosed()) {
@@ -75,7 +75,7 @@ public class ChatClient2 {
                         continue;
                     }
 
-                    String possMsgs = ((StringObject2) in.readObject()).toString();
+                    String possMsgs = ((StringObject) in.readObject()).toString();
                     if (!possMsgs.isBlank()) {
                         reporter.report(possMsgs, 1, "set");
                     }
@@ -107,10 +107,10 @@ public class ChatClient2 {
                         reporter.report("Already connected to server, you must disconnect first.", 1, "red");
                         continue;
                     }
-                    StringObject2 serializedCmd = new StringObject2(cmd[0]);
+                    StringObject serializedCmd = new StringObject(cmd[0]);
                     out.writeObject(serializedCmd);
                     out.flush();
-                    String response = ((StringObject2) in.readObject()).toString();
+                    String response = ((StringObject) in.readObject()).toString();
                     // check responses, which will change the protocols
                     // if (response.startsWith("joined existing channel")
                     //         || response.startsWith("created a new channel")) {
@@ -130,6 +130,7 @@ public class ChatClient2 {
                 reporter.report("Possible server shutdown, connection ended.", 1, "red");
             }
         } // end client while
+
     }// end main
 
 }

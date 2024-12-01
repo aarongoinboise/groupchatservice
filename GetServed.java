@@ -15,10 +15,10 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class Server2 {
+public class GetServed {
     private static final ExecutorService pool = Executors.newFixedThreadPool(4);
     private ServerSocket serverSocket;
-    private Reporter2 reporter;
+    private Reporter reporter;
     private int nickNameIdxMain;
     private String[] currNicknames;
     private Socket[] currSockets;
@@ -28,7 +28,7 @@ public class Server2 {
     private Timer shutdownTimer;
     private boolean idle;
 
-    public Server2(int port, Reporter2 reporter) throws IOException {
+    public GetServed(int port, Reporter reporter) throws IOException {
         serverSocket = new ServerSocket(port);
         this.reporter = reporter;
         nickNameIdxMain = 0;
@@ -97,7 +97,7 @@ public class Server2 {
         return true;
     }
 
-    public void startServer() {
+    public void youGotServed() {
         reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
                 + " waiting for clients...", 1, "blue");
         while (true) {
@@ -115,7 +115,7 @@ public class Server2 {
                 } else {
                     nickNameIdxMain++;
                 }
-                out.writeObject(new StringObject2("default" + nickNameIdxMain));
+                out.writeObject(new StringObject("default" + nickNameIdxMain));
                 out.flush();
                 reporter.report("new client connection: default" + nickNameIdxMain, 1, "yellow");
                 ServerConnection2 serverConnection = new ServerConnection2(in, out, currNNIdx);
@@ -201,14 +201,14 @@ public class Server2 {
                     if (inChannel) {
                         // check if message is to be sent or and check the inputs if any
                         String cMs = currChannel("").sendMessages(helpMsg);
-                        out.writeObject(new StringObject2(cMs));
+                        out.writeObject(new StringObject(cMs));
                         out.flush();
                     } else {// just send blank message
-                        out.writeObject(new StringObject2(""));
+                        out.writeObject(new StringObject(""));
                         out.flush();
                     }
                     try {
-                        currCmd = ((StringObject2) in.readObject()).toString();
+                        currCmd = ((StringObject) in.readObject()).toString();
                     } catch (SocketTimeoutException e) {
                         reporter.report("Input timeout for " + currNickname, 0, "white");
                         continue;
@@ -227,7 +227,7 @@ public class Server2 {
                     reporter.report("client " + currNickname + " sent command " + currCmd, 1, "purple");
 
                     if (currCmd.equals("/help")) {
-                        out.writeObject(new StringObject2(helpMsg));
+                        out.writeObject(new StringObject(helpMsg));
                         out.flush();
                         reporter.report("sent help message to client " + currNickname, 1, "blue");
 
@@ -238,7 +238,7 @@ public class Server2 {
                         // check if new nickname is unique among all users
                         for (String n : currNicknames) {
                             if (n.equals(newNickname)) {
-                                out.writeObject(new StringObject2("the new nickname is not unique, try again"));
+                                out.writeObject(new StringObject("the new nickname is not unique, try again"));
                                 out.flush();
                                 reporter.report(
                                         currNickname + " attempted to change nickname into a non-unique value",
@@ -258,7 +258,7 @@ public class Server2 {
                                     chan.changeNickName(oldNickname, newNickname);
                                 }
 
-                                out.writeObject(new StringObject2("your new nickname is " + newNickname));
+                                out.writeObject(new StringObject("your new nickname is " + newNickname));
                                 out.flush();
                                 reporter.report(oldNickname + " changed the nickname to " + newNickname,
                                         1, "yellow");
@@ -282,7 +282,7 @@ public class Server2 {
                                 }
                             }
                         }
-                        out.writeObject(new StringObject2(cInfo));
+                        out.writeObject(new StringObject(cInfo));
                         out.flush();
                     } else if (currCmd.startsWith("/join") && currCmd.length() >= 7
                             && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")
@@ -315,7 +315,7 @@ public class Server2 {
                                         1, "cyan");
                             }
                             s1 += ". Chat messages will now display. Any non-command message you enter will now display in the channel. Commands will still work in addition to chat messages.";
-                            out.writeObject(new StringObject2(s1));
+                            out.writeObject(new StringObject(s1));
                             out.flush();
                             inChannel = true;
                         }
@@ -333,7 +333,7 @@ public class Server2 {
                             ChannelInfo channelToLeave = currChannel(channelToLeaveNameFromCmd);
                             if (channelToLeave == null) {
                                 out.writeObject(
-                                        new StringObject2(
+                                        new StringObject(
                                                 "Bad leave command, likely due to incorrect usage of the optional [<channel>] arg (not entering the channel name correctly). An easier command to use is to simply use \"/leave\", which will leave the current channel."));
                                 out.flush();
                                 reporter.report("sent /leave retry message to client " + currNickname, 1, "cyan");
@@ -341,7 +341,7 @@ public class Server2 {
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
                                 channelToLeave.members.remove(currNickname);
-                                out.writeObject(new StringObject2(msgs + "\nleft channel " + channelToLeave.name));
+                                out.writeObject(new StringObject(msgs + "\nleft channel " + channelToLeave.name));
                                 out.flush();
                                 reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
                                 inChannel = false;
@@ -365,7 +365,7 @@ public class Server2 {
                                 reporter.report(currNickname + " left channel " + channelToLeave.name, 1, "black");
                             }
                         }
-                        out.writeObject(new StringObject2(
+                        out.writeObject(new StringObject(
                                 quitMsg + "\nLeaving server " + serverSocket.getInetAddress() + "..."));
                         out.flush();
                         removeNickname(nickNameIdx);
@@ -376,7 +376,7 @@ public class Server2 {
 
                     } else {
                         out.writeObject(
-                                new StringObject2(
+                                new StringObject(
                                         "Bad command due to improper syntax (i.e. spacing) or usage. Examples include joining a channel while in another one, or leaving a channel that you aren't currently in. Try again"));
                         out.flush();
                         reporter.report("sent retry message to client " + currNickname, 1, "cyan");
