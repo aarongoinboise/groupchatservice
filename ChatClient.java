@@ -93,18 +93,19 @@ public class ChatClient {
                         reporter.report("Enter a message to add to the channel or a command: ", 1, "purple");
                     }
                     String currCmd = inputScanner.nextLine();
-                    if (currCmd == null) {
-                        reporter.report(((StringObject) in.readObject()).toString(), 1, "black");
-                        continue;
-                    }
+                    // if (currCmd == null) {
+                    //     reporter.report(((StringObject) in.readObject()).toString(), 1, "black");
+                    //     continue;
+                    // }
+
+                    StringObject serializedCmd = new StringObject(currCmd);
+                    out.writeObject(serializedCmd);
+                    out.flush();
 
                     if (currCmd.startsWith("/connect")) {
                         reporter.report("Already connected to server, you must disconnect first.", 1, "red");
                         continue;
                     }
-                    StringObject serializedCmd = new StringObject(currCmd);
-                    out.writeObject(serializedCmd);
-                    out.flush();
                     String response = ((StringObject) in.readObject()).toString();
                     if (response.contains("Leaving server")) {
                         connected = false;

@@ -179,7 +179,7 @@ public class GetServed {
         private ObjectOutputStream out;
         private String currNickname;
         private int nickNameIdx;
-        private ChannelInfo currChannel;
+        private String channelName;
 
         private ServerThread(ObjectInputStream in, ObjectOutputStream out, int nickNameIdx) {
             this.in = in;
@@ -188,7 +188,19 @@ public class GetServed {
             synchronized (currNicknames) {
                 this.currNickname = currNicknames[nickNameIdx];
             }
-            this.currChannel = null;
+            this.channelName = "";
+        }
+
+        private ChannelInfo currChannel() {
+            synchronized (channels) {
+                for (ChannelInfo channel : channels) {
+                    if (channel.getName().equals(channelName)) {
+                        return channel;
+                    }
+                }
+                return null;
+
+            }
         }
 
         private String sendMessages() {
@@ -213,7 +225,7 @@ public class GetServed {
                 boolean open = true;
                 while (open) {
                     String currCmd = "";
-                    if (currChannel != null) {
+                    if (!channelName.equals("")) {
                         // check if message is to be sent or and check the inputs if any
                         String cMs = sendMessages();
                         if (cMs.isBlank()) {
@@ -228,19 +240,19 @@ public class GetServed {
                         out.flush();
                     }
                     currCmd = ((StringObject) in.readObject()).toString();
-                    if (currChannel != null) {
-                        if (currCmd.isBlank()) {
-                            out.writeObject(
-                                    new StringObject("no blank messages allowed, because they server no purpose."));
-                            out.flush();
-                            continue;
-                        }
+                    if (currCmd.isBlank() || currCmd.startsWith("/connect")) {
+                        // out.writeObject(
+                        //         new StringObject(
+                        //                 "no blank commands or messages allowed, because they server no purpose."));
+                        // out.flush();
+                        continue;
+                    }
+                    if (!channelName.equals("")) {
                         if (!cmd(currCmd)) {
-                            System.out.println(currCmd);
                             Date date = new Date();
                             SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
                             String fD = sdf.format(date);
-                            currChannel
+                            currChannel()
                                     .addMessage("FROM: " + currNickname + " | DATE: " + fD + " | MESSAGE: " + currCmd);
                             reporter.report("client " + currNickname + " sent message to channel ", 1, "purple");
                             out.writeObject(new StringObject("added message to channel"));
@@ -283,9 +295,10 @@ public class GetServed {
                             synchronized (currNicknames) {
                                 String oldNickname = currNicknames[nickNameIdx];
                                 currNicknames[nickNameIdx] = newNickname;
+                                currNickname = newNickname;
                                 // change in channel
-                                if (currChannel != null) {
-                                    currChannel.changeNickName(oldNickname, newNickname);
+                                if (!channelName.equals("")) {
+                                    currChannel().changeNickName(oldNickname, newNickname);
                                 }
 
                                 out.writeObject(new StringObject("your new nickname is " + newNickname));
@@ -316,7 +329,7 @@ public class GetServed {
                         out.flush();
                     } else if (currCmd.startsWith("/join") && currCmd.length() >= 7
                             && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")
-                            && currChannel == null) {
+                            && channelName.equals("")) {
                         String possChannelName = currCmd.substring(6);
                         synchronized (channels) {
                             ChannelInfo channelToJoin = null;
@@ -337,10 +350,10 @@ public class GetServed {
                                         1, "cyan");
 
                             } else { // create new channel
+                                channelName = possChannelName;
                                 channelToJoin = new ChannelInfo(possChannelName, currNickname);
                                 synchronized (channels) {
                                     channels.add(channelToJoin);
-                                    currChannel = channelToJoin;
                                 }
                                 s1 = "created a new channel called " + channelToJoin.getName();
                                 reporter.report(
@@ -355,14 +368,14 @@ public class GetServed {
                     } else if ((currCmd.startsWith("/leave")
                             && (currCmd.length() >= 8 && !currCmd.substring(7).trim().isEmpty()
                                     && currCmd.substring(6, 7).equals(" ")))
-                            && currChannel != null) {
+                            && !channelName.equals("")) {
                         // get substring if it exists
                         String channelToLeaveNameFromCmd = "";
                         if (currCmd.length() >= 8) {
                             channelToLeaveNameFromCmd = currCmd.substring(7);
                         }
                         synchronized (channels) {
-                            if (!channelToLeaveNameFromCmd.equals(currChannel.getName())) {
+                            if (!channelToLeaveNameFromCmd.equals(currChannel().getName())) {
                                 out.writeObject(
                                         new StringObject(
                                                 "Bad leave command, likely due to incorrect usage of the optional [<channel>] arg (not entering the channel name correctly). An easier command to use is to simply use \"/leave\", which will leave the current channel."));
@@ -371,11 +384,11 @@ public class GetServed {
                             } else {// actually leave the channel
                                 // send all messages still not sent yet
                                 String msgs = sendMessages();
-                                currChannel.removeMember(currNickname);
-                                out.writeObject(new StringObject(msgs + "\nleft channel " + currChannel.getName()));
+                                currChannel().removeMember(currNickname);
+                                out.writeObject(new StringObject(msgs + "\nleft channel " + currChannel().getName()));
                                 out.flush();
-                                reporter.report(currNickname + " left channel " + currChannel.getName(), 1, "black");
-                                currChannel = null;
+                                reporter.report(currNickname + " left channel " + currChannel().getName(), 1, "black");
+                                channelName = "";
                             }
                         } // end sync
 
@@ -383,8 +396,8 @@ public class GetServed {
                         // leave entire server
                         String quitMsg = "";
                         // leave channel
-                        if (currChannel != null) {
-                            ChannelInfo channelToLeave = currChannel;
+                        if (!channelName.equals("")) {
+                            ChannelInfo channelToLeave = currChannel();
                             if (channelToLeave == null) {
                                 quitMsg += "Internal error, while quitting your channel was not found.\n";
                                 reporter.report(currNickname + " could not leave channel while quitting", 0, "red");
@@ -395,7 +408,7 @@ public class GetServed {
                                 quitMsg += msgs + "\nleft channel " + channelToLeave.getName();
                                 reporter.report(currNickname + " left channel " + channelToLeave.getName(), 1, "black");
                             }
-                            currChannel = null;
+                            channelName = "";
                         }
                         synchronized (serverSocket) {
                             out.writeObject(new StringObject(
@@ -460,19 +473,21 @@ public class GetServed {
         }
 
         private synchronized void addMessage(String message) {
-            for (Entry<String, String> member : members.entrySet()) {
-                messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>())
-                        .add(member.getValue() + "|" + message);
+            if (!message.isBlank()) {
+                for (Entry<String, String> member : members.entrySet()) {
+                    messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>())
+                            .add(member.getValue() + "|" + message);
+                }
             }
         }
 
         private synchronized void changeNickName(String oldN, String newN) {
-            removeMember(oldN);
-            addMember(newN);
-            ArrayList<String> m = messages.remove(oldN);
-            if (m != null && !m.isEmpty()) {
-                messages.computeIfAbsent(newN, messages -> new ArrayList<String>()).add(String.join("\n", m));
-            }
+            String color = members.get(oldN);
+            String msgs = sendMessages(oldN);
+            System.out.println("msgs: " + msgs);
+            members.remove(oldN);
+            members.put(newN, color);
+            addMessage(msgs);
         }
 
         private synchronized String sendMessages(String member) {
