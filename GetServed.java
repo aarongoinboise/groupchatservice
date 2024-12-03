@@ -204,7 +204,7 @@ public class GetServed {
                     synchronized (currSockets) {
                         for (int i = 0; i < currSockets.length; i++) {
                             if (currSockets[i].isClosed()) {
-                                reporter.report("client " + currNicknames[i] + " disconnected", 0, "black");
+                                reporter.report("client " + currNicknames[i] + " disconnected outside of thread", 0, "black");
                                 removeNickname(i);
                             }
                         }
@@ -495,6 +495,7 @@ public class GetServed {
                                     quitMsg + "\nLeaving server " + serverSocket.getInetAddress() + "..."));
                         }
                         out.flush();
+                        channelClose();
                         removeNickname(nickNameIdx);
                         in.close();
                         out.close();
@@ -513,9 +514,21 @@ public class GetServed {
                 } // end while
 
             } catch (IOException e) {
+                channelClose();
                 reporter.report("client " + currNickname + " disconnected", 0, "red");
             } catch (Exception e) {
+                channelClose();
                 reporter.report("exception occurred: " + e.toString(), 0, "red");
+            }
+        }
+
+        private void channelClose() {
+            synchronized (channels) {
+                ChannelInfo c = currChannel();
+                if (!channelName.equals("") && c != null) {
+                    sendMessages();
+                    c.removeMember(currNickname);
+                }
             }
         }
     }
@@ -532,7 +545,7 @@ public class GetServed {
         /**
          * Constructor: initializes objects and adds first member of the channel
          * 
-         * @param name the name of the channel
+         * @param name        the name of the channel
          * @param firstMember the first client who joined this new channel
          */
         private ChannelInfo(String name, String firstMember) {
@@ -565,7 +578,8 @@ public class GetServed {
         }
 
         /**
-         * Adds a new member to the channel, and gives them a color for their messages in the channel
+         * Adds a new member to the channel, and gives them a color for their messages
+         * in the channel
          * 
          * @param newMember the nickname of the new member
          */
@@ -582,15 +596,20 @@ public class GetServed {
          */
         private synchronized void addMessage(String message) {
             if (!message.isBlank()) {
+                // get key of the person who sent the message
+                int barIdx = message.indexOf(" |");
+                int fromIdx = message.indexOf("FROM: ") + "FROM: ".length();
+                String authorS = message.substring(fromIdx, barIdx).trim();
+                String author = members.get(authorS);
                 for (Entry<String, String> member : members.entrySet()) {
                     messages.computeIfAbsent(member.getKey(), messages -> new ArrayList<String>())
-                            .add(member.getValue() + "|" + message);
+                            .add(author + "|" + message);
                 }
             }
         }
 
         /**
-         * Changes the nickname information in the  channel
+         * Changes the nickname information in the channel
          * 
          * @param oldN the current nickname of someone in the channel
          * @param newN the new nickname that will replace the current one
