@@ -204,7 +204,8 @@ public class GetServed {
                     synchronized (currSockets) {
                         for (int i = 0; i < currSockets.length; i++) {
                             if (currSockets[i].isClosed()) {
-                                reporter.report("client " + currNicknames[i] + " disconnected outside of thread", 0, "black");
+                                reporter.report("client " + currNicknames[i] + " disconnected outside of thread", 0,
+                                        "black");
                                 removeNickname(i);
                             }
                         }
@@ -490,17 +491,17 @@ public class GetServed {
                             }
                             channelName = "";
                         }
-                        synchronized (serverSocket) {
-                            out.writeObject(new StringObject(
-                                    quitMsg + "\nLeaving server " + serverSocket.getInetAddress() + "..."));
-                        }
+                        out.writeObject(new StringObject(
+                                quitMsg + "\nLeaving server " + serverSocket.getInetAddress() + "..."));
                         out.flush();
                         channelClose();
                         removeNickname(nickNameIdx);
                         in.close();
                         out.close();
                         synchronized (currSockets) {
-                            currSockets[nickNameIdx].close();
+                            if (currSockets[nickNameIdx] != null) {
+                                currSockets[nickNameIdx].close();
+                            }
                         }
                         open = false;
 
