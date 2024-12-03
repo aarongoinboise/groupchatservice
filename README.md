@@ -1,8 +1,8 @@
 ##	Names of IDs of all team members
 
-Aaron Goin
-Skarlet Williams
-Cole Brusa
+Aaron Goin, 112185320
+Skarlet Williams, 114131210
+Cole Brusa, 114171852
 
 ##	A web link to the demo video
 
@@ -32,13 +32,16 @@ If you don't have it, learn how to install it
 [here](https://www.java.com/en/download/).\
 Once you have Java, you have a couple options. To easily get started, run the server script from the directory *groupchatservice*:
 ```
-$ runserver.sh
+$ ./runserver.sh
 ```
 Then, take note of the args in the script (-p 5005 -d 1) and run the client script:
 ```
-$ runclient.sh
+$ ./runclient.sh
 ```
-To connect to the previous server (if you are on the same computer it was run on), use the following /connect command: /connect localhost 5111.
+To connect to the previous server (if you are on the same computer it was run on), use the following /connect command:\
+```
+$ /connect localhost 5111.
+```
 
 Note: If you get a "bad interpreter" error, use this command:
 ```
@@ -62,7 +65,7 @@ Note: The port number is used to connect with clients. Debug level 0 means that 
 
 ##	A section on observations/reflection on your development process and the roles of each team member
 
-We used an all hands on deck approach. Our group made sure to work in stages, and contribute at each stage. The easiest way to define this is the following:
+We used an all hands on deck approach. Our group made sure to work in stages, and contribute at each stage. This was done via pair programming, and it worked well. The easiest way to define this is the following:
 - Basic Client and Server with one read/write operation and a serialized object
 - Basic Client and Server with "easy commands" (/list and /help)
 - Basic Client and Server with all commands
@@ -71,7 +74,7 @@ We used an all hands on deck approach. Our group made sure to work in stages, an
 
 This was sometimes fluid, as we had to go back to previous stages at times. However, it kept us on track, and let us not get ahead of ourselves. 
 
-An important note is that Aaron did this project before in Distributed Systems last semester. The formatting on the previous project was influential in this process, especially deciding on a server heavy design. This meant the server keeps track of client and channel information, which allows for less steps in the protocol. Also, things regarding the usage of a fixed thread pool for clients, as well as a TimerTask for the 3 minute idle counting of the server were inspired by that assignment. However, there are many differences, such as a reporter for printing messages as well as the decision to write a blank message to the client if they weren't in a channel (instead of a series of messages they haven't read yet in the channel). You'll also notice that synchronization key words on objects and Object locks were used more often. This gave everyone in the group a chance to contribute and create a unique project.
+An important note is that Aaron did a similar project before in Distributed Systems last semester. The formatting on the previous project was influential in this process, especially deciding on a server heavy design. This meant the server keeps track of client and channel information, which allows for less steps in the protocol. Also, things regarding the usage of a fixed thread pool for clients, as well as a TimerTask for the 3 minute idle counting of the server were inspired by that assignment. However, there are many differences, such as a reporter for printing messages as well as the decision to write a blank message to the client if they weren't in a channel (instead of a series of messages they haven't read yet in the channel). You'll also notice that synchronization key words on objects and Object locks were used more often. This gave everyone in the group a chance to contribute and create a unique project.
 
 ##  Sources
 

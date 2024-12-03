@@ -418,6 +418,7 @@ public class GetServed {
                                 }
                             }
                             String s1;
+                            channelName = possChannelName;
                             if (channelToJoin != null) {// channel already exists, join it
                                 channelToJoin.addMember(currNickname);
                                 s1 = "joined existing channel " + channelToJoin.getName();
@@ -426,7 +427,6 @@ public class GetServed {
                                         1, "cyan");
 
                             } else { // create new channel
-                                channelName = possChannelName;
                                 channelToJoin = new ChannelInfo(possChannelName, currNickname);
                                 synchronized (channels) {
                                     channels.add(channelToJoin);

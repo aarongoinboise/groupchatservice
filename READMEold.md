@@ -130,7 +130,6 @@ Once all these states were figured out, we connected them with the directions to
 [Color console](https://stackoverflow.com/questions/5762491/how-to-print-color-in-console-using-system-out-println)\
 [Makefile resource](https://stackoverflow.com/questions/32127524/how-to-install-and-use-make-in-windows)\
 [Oracle docs](https://docs.oracle.com/javase/8/docs/api/)\
-[Repeat method](https://www.geeksforgeeks.org/string-class-repeat-method-in-java-with-examples/)
 [Shutdown hooks](https://www.geeksforgeeks.org/jvm-shutdown-hook-java/)\
 [Synchronization 1](https://www.geeksforgeeks.org/synchronization-in-java/)\
 [Synchronization 2](https://www.baeldung.com/java-synchronized)
