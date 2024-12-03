@@ -15,6 +15,10 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Class for server logic. Starts the server, accepts clients, and tracks
+ * information.
+ */
 public class GetServed {
     private static final ExecutorService pool = Executors.newFixedThreadPool(4);
     private ServerSocket serverSocket;
@@ -31,6 +35,13 @@ public class GetServed {
     private Object idxLock;
     private Object idleLock;
 
+    /**
+     * Constructor: initializes fields and starts the timer for an idle server.
+     * 
+     * @param port     the port the server will run on
+     * @param reporter a Reporter for the server to print messages
+     * @throws IOException as needed, for main method to catch
+     */
     public GetServed(int port, Reporter reporter) throws IOException {
         serverSocket = new ServerSocket(port);
         this.reporter = reporter;
@@ -53,6 +64,9 @@ public class GetServed {
         startTimer();
     }
 
+    /**
+     * Starts a timer task to shut down the server if idle for 3 minutes.
+     */
     public void startTimer() {
         reporter.report("starting shutdown timer", 1, "green");
         shutdownTimer.cancel();
@@ -75,6 +89,12 @@ public class GetServed {
         shutdownTimer.schedule(task, 180000);
     }
 
+    /**
+     * Removes relevant records of a client nickname, and maintains original data
+     * structures
+     * 
+     * @param idx the index where the nickname to be removed is
+     */
     public void removeNickname(int idx) {
         synchronized (currNicknames) {
             synchronized (currSockets) {
@@ -104,6 +124,12 @@ public class GetServed {
         }
     }
 
+    /**
+     * Determines if the nickname array will become empty after removing a nickname
+     * 
+     * @param array the array that is being analyzed for emptiness
+     * @return true if the array is empty, false if not
+     */
     private boolean emptyArray(String[] array) {
         for (String s : array) {
             if (s != null) {
@@ -113,6 +139,24 @@ public class GetServed {
         return true;
     }
 
+    /**
+     * Determines if the clients array is full
+     * 
+     * @return true if the array has four nicknames and connections, false if not
+     */
+    private boolean full() {
+        for (String n : currNicknames) {
+            if (n == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Main logic for accepting clients and starting threads that maintain
+     * connections with them.
+     */
     public void youGotServed() {
         synchronized (serverSocket) {
             reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
@@ -124,6 +168,13 @@ public class GetServed {
                     Socket client = serverSocket.accept();
                     ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                     ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                    synchronized (currNicknames) {// check if four are in
+                        if (full()) {
+                            reporter.report("client rejected due to full pool", 1, "yellow");
+                            client.close();
+                            continue;
+                        }
+                    }
                     synchronized (currNicknames) {
                         synchronized (currSockets) {
                             currNicknames[nickNameIdxMain] = "default" + nickNameIdxMain;
@@ -140,9 +191,9 @@ public class GetServed {
                         } else {
                             nickNameIdxMain++;
                         }
-                        out.writeObject(new StringObject("default" + nickNameIdxMain));
+                        out.writeObject(new StringObject("default" + currNNIdx));
                         out.flush();
-                        reporter.report("new client connection: default" + nickNameIdxMain, 1, "yellow");
+                        reporter.report("new client connection: default" + currNNIdx, 1, "yellow");
 
                         ServerThread serverConnection = new ServerThread(in, out, currNNIdx);
                         pool.execute(serverConnection);
@@ -163,6 +214,13 @@ public class GetServed {
         }
     }
 
+    /**
+     * Determines if a client input is a command or not. Checks the beginning of the
+     * string to find this out.
+     * 
+     * @param cmd the command
+     * @return true if the input is a command, false if not
+     */
     private static boolean cmd(String cmd) {
         String lCmd = cmd.toLowerCase();
         for (String c : cmds) {
@@ -173,7 +231,10 @@ public class GetServed {
         return false;
     }
 
-    // ServerConnection2 implements Runnable instead of extending Thread
+    /**
+     * Class that creates a connection with each client that connects to the server,
+     * used in a multi-threading format.
+     */
     private class ServerThread implements Runnable {
         private ObjectInputStream in;
         private ObjectOutputStream out;
@@ -181,6 +242,14 @@ public class GetServed {
         private int nickNameIdx;
         private String channelName;
 
+        /**
+         * Constructor, initializes fields
+         * 
+         * @param in          the input stream for reading client objects
+         * @param out         the output stream for sending client objects
+         * @param nickNameIdx the index of the client's nickname in the GetServed class
+         *                    array
+         */
         private ServerThread(ObjectInputStream in, ObjectOutputStream out, int nickNameIdx) {
             this.in = in;
             this.out = out;
@@ -191,6 +260,11 @@ public class GetServed {
             this.channelName = "";
         }
 
+        /**
+         * Finds the ChannelInfo object of the current channelName
+         * 
+         * @return the corresponding ChannelInfo object, or null if not present
+         */
         private ChannelInfo currChannel() {
             synchronized (channels) {
                 for (ChannelInfo channel : channels) {
@@ -203,6 +277,12 @@ public class GetServed {
             }
         }
 
+        /**
+         * Find the channel with the currNickName, and gets the unread messages for the
+         * client from the channel.
+         * 
+         * @return the unread messages, or the blank string if they are not present
+         */
         private String sendMessages() {
             synchronized (channels) {
                 ChannelInfo currChannel = null;
@@ -220,7 +300,7 @@ public class GetServed {
         }
 
         @Override
-        public void run() {
+        public void run() {// main protocol with client, checks commands and sends appropriate responses
             try {
                 boolean open = true;
                 while (open) {
@@ -241,13 +321,9 @@ public class GetServed {
                     }
                     currCmd = ((StringObject) in.readObject()).toString();
                     if (currCmd.isBlank() || currCmd.startsWith("/connect")) {
-                        // out.writeObject(
-                        //         new StringObject(
-                        //                 "no blank commands or messages allowed, because they server no purpose."));
-                        // out.flush();
                         continue;
                     }
-                    if (!channelName.equals("")) {
+                    if (!channelName.equals("")) {// adds message to channel
                         if (!cmd(currCmd)) {
                             Date date = new Date();
                             SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy h:mm:ss a");
@@ -264,7 +340,6 @@ public class GetServed {
                             continue;
                         }
                     }
-
                     reporter.report("client " + currNickname + " sent command " + currCmd, 1, "purple");
 
                     if (currCmd.equals("/help")) {
@@ -274,12 +349,13 @@ public class GetServed {
 
                     } else if (currCmd.startsWith("/nick") && currCmd.length() >= 7
                             && !currCmd.substring(6).trim().isEmpty() && currCmd.substring(5, 6).equals(" ")) {
+                        // above conditions are checking for correct command
                         String newNickname = currCmd.substring(6);
                         boolean unique = true;
                         // check if new nickname is unique among all users
                         synchronized (currNicknames) {
                             for (String n : currNicknames) {
-                                if (n != null && n.equals(newNickname)) {
+                                if (n != null && n.equals(newNickname)) {// nickname already exists
                                     out.writeObject(new StringObject("the new nickname is not unique, try again"));
                                     out.flush();
                                     reporter.report(
@@ -334,7 +410,7 @@ public class GetServed {
                         synchronized (channels) {
                             ChannelInfo channelToJoin = null;
                             if (!channels.isEmpty()) {
-                                for (ChannelInfo channel : channels) {
+                                for (ChannelInfo channel : channels) { // makes sure the channel name is unique
                                     if (channel.getName().equals(possChannelName)) {
                                         channelToJoin = channel;
                                         break;
@@ -342,7 +418,7 @@ public class GetServed {
                                 }
                             }
                             String s1;
-                            if (channelToJoin != null) {
+                            if (channelToJoin != null) {// channel already exists, join it
                                 channelToJoin.addMember(currNickname);
                                 s1 = "joined existing channel " + channelToJoin.getName();
                                 reporter.report(
@@ -365,16 +441,20 @@ public class GetServed {
                             out.flush();
                         } // end sync
 
-                    } else if ((currCmd.startsWith("/leave")
-                            && (currCmd.length() >= 8 && !currCmd.substring(7).trim().isEmpty()
-                                    && currCmd.substring(6, 7).equals(" ")))
-                            && !channelName.equals("")) {
+                    } else if ((currCmd.equals("/leave") && !channelName.equals(""))
+                            || (currCmd.startsWith("/leave")
+                                    && (currCmd.length() >= 8 && !currCmd.substring(7).trim().isEmpty()
+                                            && currCmd.substring(6, 7).equals(" ")))
+                                    && !channelName.equals("")) {
                         // get substring if it exists
                         String channelToLeaveNameFromCmd = "";
                         if (currCmd.length() >= 8) {
                             channelToLeaveNameFromCmd = currCmd.substring(7);
+                        } else {
+                            channelToLeaveNameFromCmd = channelName;
                         }
                         synchronized (channels) {
+                            // makes sure if optional argument is used, it matches the channel they are in
                             if (!channelToLeaveNameFromCmd.equals(currChannel().getName())) {
                                 out.writeObject(
                                         new StringObject(
@@ -423,7 +503,7 @@ public class GetServed {
                         }
                         open = false;
 
-                    } else {
+                    } else { // improper commands
                         out.writeObject(
                                 new StringObject(
                                         "Bad command due to improper syntax (i.e. spacing) or usage. Examples include joining a channel while in another one, or leaving a channel that you aren't currently in. Try again"));
@@ -440,12 +520,21 @@ public class GetServed {
         }
     }
 
+    /**
+     * Object for storing channel information
+     */
     private class ChannelInfo {
         String name;
         HashMap<String, String> members;
         HashMap<String, ArrayList<String>> messages;
         List<String> channelColors;
 
+        /**
+         * Constructor: initializes objects and adds first member of the channel
+         * 
+         * @param name the name of the channel
+         * @param firstMember the first client who joined this new channel
+         */
         private ChannelInfo(String name, String firstMember) {
             this.name = name;
             members = new HashMap<>();
@@ -454,24 +543,43 @@ public class GetServed {
             addMember(firstMember);
         }
 
+        /**
+         * @return the channel name
+         */
         private synchronized String getName() {
             return name;
         }
 
+        /**
+         * @return the list of member nicknames
+         */
         private synchronized Set<String> getMembers() {
             return members.keySet();
         }
 
+        /**
+         * @param mem the nickname of the member to remove
+         */
         private synchronized void removeMember(String mem) {
             members.remove(mem);
         }
 
+        /**
+         * Adds a new member to the channel, and gives them a color for their messages in the channel
+         * 
+         * @param newMember the nickname of the new member
+         */
         private synchronized void addMember(String newMember) {
             String color = channelColors.remove(0);
             members.put(newMember, color);
             channelColors.add(color);
         }
 
+        /**
+         * Adds a message for each channel member to read
+         * 
+         * @param message the message to add for each member
+         */
         private synchronized void addMessage(String message) {
             if (!message.isBlank()) {
                 for (Entry<String, String> member : members.entrySet()) {
@@ -481,6 +589,12 @@ public class GetServed {
             }
         }
 
+        /**
+         * Changes the nickname information in the  channel
+         * 
+         * @param oldN the current nickname of someone in the channel
+         * @param newN the new nickname that will replace the current one
+         */
         private synchronized void changeNickName(String oldN, String newN) {
             String color = members.get(oldN);
             String msgs = sendMessages(oldN);
@@ -490,6 +604,12 @@ public class GetServed {
             addMessage(msgs);
         }
 
+        /**
+         * Removes and sends messages to a client member
+         * 
+         * @param member the client who will receive their messages
+         * @return the String representation of the messages
+         */
         private synchronized String sendMessages(String member) {
             if (!messages.containsKey(member)) {
                 return "";

@@ -6,19 +6,18 @@ import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 /**
- * Client side class for a chat server
+ * Client side class for a chat client
  */
 public class ChatClient {
     public static Scanner inputScanner;
     public static Scanner sockScan;
     private static Reporter reporter = new Reporter(1);
     private static boolean inChannel;
-    // public static String nickname;
 
     /**
-     * Main for ChatClient: Connects to a server and uses protocol commands
+     * Main method for ChatClient: Connects to a server and uses protocol commands
      * 
-     * @param args
+     * @param args command line arguments
      */
     @SuppressWarnings("resource")
     public static void main(String args[]) {
@@ -33,10 +32,10 @@ public class ChatClient {
             }
             Socket socket = null;
             try {
-                sockScan = new Scanner(connectCmd);
+                sockScan = new Scanner(connectCmd); // used to parse through connect command
                 sockScan.useDelimiter("\\s+");
                 String cmd = sockScan.next();
-                if (!cmd.equals("/connect")) {
+                if (!cmd.equals("/connect")) { // should use connect as the first command
                     reporter.report("Not a connect command, try again.", 1, "cyan");
                     continue;
                 }
@@ -84,19 +83,15 @@ public class ChatClient {
                     String possMsgs = ((StringObject) in.readObject()).toString();
                     if (possMsgs.equals("No new messages...")) {
                         reporter.report(possMsgs, 1, "blue");
-                    } else if (!possMsgs.isBlank()) {
+                    } else if (!possMsgs.isBlank()) { // used primarily when the client is not in a channel
                         reporter.report(possMsgs, 1, "set");
                     }
                     if (!inChannel) {
-                    reporter.report("Enter a command: ", 1, "purple");
+                        reporter.report("Enter a command: ", 1, "purple");
                     } else {
-                        reporter.report("Enter a message to add to the channel or a command: ", 1, "purple");
+                        reporter.report("Enter a message to add to the channel or a command: ", 1, "purple"); // used when in a channel
                     }
                     String currCmd = inputScanner.nextLine();
-                    // if (currCmd == null) {
-                    //     reporter.report(((StringObject) in.readObject()).toString(), 1, "black");
-                    //     continue;
-                    // }
 
                     StringObject serializedCmd = new StringObject(currCmd);
                     out.writeObject(serializedCmd);
@@ -120,7 +115,7 @@ public class ChatClient {
                 } // end connected while
 
             } catch (IOException | ClassNotFoundException e) {
-                reporter.report("Possible server shutdown, connection ended.", 1, "red");
+                reporter.report("Possible server shutdown or server is full, connection ended.", 1, "red");
                 try {
                     socket.close();
                 } catch (IOException e1) {

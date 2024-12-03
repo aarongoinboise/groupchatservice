@@ -83,3 +83,4 @@ An important note is that Aaron did this project before in Distributed Systems l
 [Synchronization 2](https://www.baeldung.com/java-synchronized)\
 [Timestamp](https://stackoverflow.com/questions/8345023/need-to-get-current-timestamp-in-java)\
 p1 from Distributed Systems Spring 2024
+Class examples from Distributed Systems
