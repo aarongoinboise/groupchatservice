@@ -618,7 +618,11 @@ public class GetServed {
             if (memberMessages == null) {
                 return "";
             }
-            return String.join("\n", memberMessages);
+            String ret = "";
+            for (String m : memberMessages) {
+                ret += m + "\n";
+            }
+            return ret;
         }
     }
 }

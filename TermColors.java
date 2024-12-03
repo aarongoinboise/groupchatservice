@@ -6,7 +6,8 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Object that holds color logic to print colored font on the terminal, with some background logic
+ * Object that holds color logic to print colored font on the terminal, with
+ * some background logic
  */
 public class TermColors {
     private static final String[] colors = {
@@ -33,7 +34,7 @@ public class TermColors {
      * Prints message with color and proper words
      * 
      * @param termWord the color word
-     * @param msg the message
+     * @param msg      the message
      */
     public void colorPrint(String termWord, String msg) {
         System.out.println(termWordToColor(termWord) + msg + reset);
@@ -45,9 +46,12 @@ public class TermColors {
      * @param colorMsg the message with color keyword
      */
     public void simpleColorPrint(String colorMsg) {
-        int index = colorMsg.indexOf('|');
-        String restOfMsg = colorMsg.substring(index + 1);
-        colorPrint(colorMsg.substring(0, index), restOfMsg);
+        String[] msgs = colorMsg.split("\n");
+        for (String m : msgs) {
+            int index = m.indexOf('|');
+            String restOfMsg = m.substring(index + 1);
+            colorPrint(m.substring(0, index), restOfMsg);
+        }
     }
 
     /**
