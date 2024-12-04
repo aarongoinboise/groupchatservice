@@ -491,9 +491,11 @@ public class GetServed {
 
             } catch (IOException e) {
                 channelClose();
+                removeNickname(nickNameIdx);
                 reporter.report("client " + currNickname + " disconnected", 0, "red");
             } catch (Exception e) {
                 channelClose();
+                removeNickname(nickNameIdx);
                 reporter.report("exception occurred: " + e.toString(), 0, "red");
             }
         }
