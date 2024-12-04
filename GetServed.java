@@ -25,7 +25,6 @@ public class GetServed {
     private Reporter reporter;
     private int nickNameIdxMain;
     private String[] currNicknames;
-    private Socket[] currSockets;
     private ArrayList<ChannelInfo> channels;
     private String helpMsg;
     private static String[] cmds = { "/connect", "/refresh", "/nick", "/list", "/join", "/leave", "/quit",
@@ -47,7 +46,6 @@ public class GetServed {
         this.reporter = reporter;
         nickNameIdxMain = 0;
         currNicknames = new String[4];
-        currSockets = new Socket[4];
         channels = new ArrayList<ChannelInfo>();
         helpMsg = "\n-\n" +
                 "/connect <server-name> [port#]\n" + "Connect to named server (port# optional)\n\n" +
@@ -97,30 +95,25 @@ public class GetServed {
      */
     public void removeNickname(int idx) {
         synchronized (currNicknames) {
-            synchronized (currSockets) {
-                currNicknames[idx] = null;
-                String[] newArray = new String[4];
-                Socket[] newSocks = new Socket[4];
-                int newIdx = 0;
-                for (int i = 0; i < currNicknames.length; i++) {
-                    if (currNicknames[i] != null) {
-                        newArray[newIdx] = currNicknames[i];
-                        newSocks[newIdx] = currSockets[i];
-                        newIdx++;
-                    }
+            currNicknames[idx] = null;
+            String[] newArray = new String[4];
+            int newIdx = 0;
+            for (int i = 0; i < currNicknames.length; i++) {
+                if (currNicknames[i] != null) {
+                    newArray[newIdx] = currNicknames[i];
+                    newIdx++;
                 }
-                if (emptyArray(newArray)) {
-                    synchronized (idleLock) {
-                        idle = true;
-                    }
-                    startTimer();
-                }
-                synchronized (idxLock) {
-                    nickNameIdxMain = newIdx;
-                }
-                currNicknames = newArray;
-                currSockets = newSocks;
             }
+            if (emptyArray(newArray)) {
+                synchronized (idleLock) {
+                    idle = true;
+                }
+                startTimer();
+            }
+            synchronized (idxLock) {
+                nickNameIdxMain = newIdx;
+            }
+            currNicknames = newArray;
         }
     }
 
@@ -156,60 +149,46 @@ public class GetServed {
     /**
      * Main logic for accepting clients and starting threads that maintain
      * connections with them.
+     * 
+     * @throws IOException if the first write doesn't work
      */
-    public void youGotServed() {
+    public void youGotServed() throws IOException {
         synchronized (serverSocket) {
             reporter.report("Server " + serverSocket.getInetAddress() + " up on port " + serverSocket.getLocalPort()
                     + " waiting for clients...", 1, "blue");
         }
         while (true) {
-            try {
-                synchronized (serverSocket) {
-                    Socket client = serverSocket.accept();
-                    ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-                    ObjectInputStream in = new ObjectInputStream(client.getInputStream());
-                    synchronized (currNicknames) {// check if four are in
-                        if (full()) {
-                            reporter.report("client rejected due to full pool", 1, "yellow");
-                            client.close();
-                            continue;
-                        }
-                    }
-                    synchronized (currNicknames) {
-                        synchronized (currSockets) {
-                            currNicknames[nickNameIdxMain] = "default" + nickNameIdxMain;
-                            currSockets[nickNameIdxMain] = client;
-                        }
-                    }
-                    synchronized (idleLock) {
-                        idle = false;
-                    }
-                    synchronized (idxLock) {
-                        int currNNIdx = nickNameIdxMain;
-                        if (nickNameIdxMain == 3) {
-                            nickNameIdxMain = 0;
-                        } else {
-                            nickNameIdxMain++;
-                        }
-                        out.writeObject(new StringObject("default" + currNNIdx));
-                        out.flush();
-                        reporter.report("new client connection: default" + currNNIdx, 1, "yellow");
-
-                        ServerThread serverConnection = new ServerThread(in, out, currNNIdx);
-                        pool.execute(serverConnection);
+            synchronized (serverSocket) {
+                Socket client = serverSocket.accept();
+                ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+                ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+                synchronized (currNicknames) {// check if four are in
+                    if (full()) {
+                        reporter.report("client rejected due to full pool", 1, "yellow");
+                        client.close();
+                        continue;
                     }
                 }
-            } catch (IOException e) {
                 synchronized (currNicknames) {
-                    synchronized (currSockets) {
-                        for (int i = 0; i < currSockets.length; i++) {
-                            if (currSockets[i].isClosed()) {
-                                reporter.report("client " + currNicknames[i] + " disconnected outside of thread", 0,
-                                        "black");
-                                removeNickname(i);
-                            }
-                        }
+                    // synchronized (currSockets) {
+                    currNicknames[nickNameIdxMain] = "default" + nickNameIdxMain;
+                }
+                synchronized (idleLock) {
+                    idle = false;
+                }
+                synchronized (idxLock) {
+                    int currNNIdx = nickNameIdxMain;
+                    if (nickNameIdxMain == 3) {
+                        nickNameIdxMain = 0;
+                    } else {
+                        nickNameIdxMain++;
                     }
+                    out.writeObject(new StringObject("default" + currNNIdx));
+                    out.flush();
+                    reporter.report("new client connection: default" + currNNIdx, 1, "yellow");
+
+                    ServerThread serverConnection = new ServerThread(in, out, currNNIdx);
+                    pool.execute(serverConnection);
                 }
             }
         }
@@ -498,12 +477,8 @@ public class GetServed {
                         removeNickname(nickNameIdx);
                         in.close();
                         out.close();
-                        synchronized (currSockets) {
-                            if (currSockets[nickNameIdx] != null) {
-                                currSockets[nickNameIdx].close();
-                            }
-                        }
                         open = false;
+                        reporter.report("client " + currNickname + " disconnected", 0, "red");
 
                     } else { // improper commands
                         out.writeObject(
