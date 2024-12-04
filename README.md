@@ -10,7 +10,7 @@ Cole Brusa, 114171852
 ##	A file/folder manifest to guide reading through the code
 
 <pre>
-|- groupchatservice (the top level, project folder)
+|- 8_Payload Pirates_Goin_Williams_Brusa (the top level, project folder)
     - ChatClient.java (Driver class for the client, with related client logic)
     - ChatServer.java (Driver class for the server)
     - ChatServerParser.java (Parses arguments for ChatServer, and stops program with usage statements as needed)
@@ -24,14 +24,19 @@ Cole Brusa, 114171852
 
 ##	A section on building and running the server/clients
 
-Make sure you have Java fully installed in your environment (Version 17 and up).
+First, from the top-level (8_Payload Pirates_Goin_Williams_Brusa) directory, run the following command:
+```
+$ chmod -R a+x *
+```
+
+Next, ensure you have Java fully installed in your environment (Version 17 and up).
 You can do this by running the following command:
 ```
 $ java --version
 ```
 If you don't have it, learn how to install it 
 [here](https://www.java.com/en/download/).\
-Once you have Java, you have a couple options. To easily get started, run the server script from the directory *groupchatservice*:
+Once you have Java, you have a couple options. To easily get started, run the server script from the directory *8_Payload Pirates_Goin_Williams_Brusa*:
 ```
 $ ./runserver.sh
 ```
