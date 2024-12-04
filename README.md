@@ -1,10 +1,11 @@
 ##	Names of IDs of all team members
 
-Aaron Goin, 112185320
-Skarlet Williams, 114131210
+Aaron Goin, 112185320\
+Skarlet Williams, 114131210\
 Cole Brusa, 114171852
 
 ##	A web link to the demo video
+[the link](https://drive.google.com/file/d/1iVC57O4lGAnqt3h4ni48qQUys5w1Wk6y/view?usp=sharing)
 
 ##	A file/folder manifest to guide reading through the code
 
@@ -85,5 +86,5 @@ An important note is that Aaron did a similar project before in Distributed Syst
 [Synchronization 1](https://www.geeksforgeeks.org/synchronization-in-java/)\
 [Synchronization 2](https://www.baeldung.com/java-synchronized)\
 [Timestamp](https://stackoverflow.com/questions/8345023/need-to-get-current-timestamp-in-java)\
-p1 from Distributed Systems Spring 2024
+p1 from Distributed Systems Spring 2024\
 Class examples from Distributed Systems
